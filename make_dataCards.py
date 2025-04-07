@@ -88,7 +88,7 @@ def get_hist(process, region, ptbin, histograms):
     obs_name = hist.axes[0].name  # Observable name (e.g., "msd")
     sumw2 = np.zeros_like(hist)
 
-    return (np.array(hist), binning, obs_name, sumw2)
+    return (hist.values(), hist.axes[0].edges, hist.axes[0].name, hist.variances())
 
 
 
