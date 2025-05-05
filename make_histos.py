@@ -4,7 +4,7 @@ import pickle
 from pathlib import Path
 import numpy as np
 import hist
-from hpt import utils
+from hbb import utils
 import argparse
 import json
 
