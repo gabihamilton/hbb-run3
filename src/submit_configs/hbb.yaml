@@ -81,7 +81,7 @@
     "EWKV": { "files_per_job": 20, },
   },
   "2023BPix": {
-    "JetMET": { "files_per_job": 8, },
+    "JetMET": { "files_per_job": 10, },
     "Hbb": { "subsamples": [
       GluGluHto2B_PT-200_M-125,
       VBFHto2B_M-125_dipoleRecoilOn,
