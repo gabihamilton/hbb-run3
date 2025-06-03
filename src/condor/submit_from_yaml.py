@@ -21,14 +21,13 @@ if __name__ == "__main__":
     parser.add_argument("--yaml", default="", help="yaml file", type=str)
     args = parser.parse_args()
 
-    print("Will submit for all years in yaml")
-
     with Path(args.yaml).open() as file:
         samples_to_submit = yaml.safe_load(file)
 
     for key, tdict in samples_to_submit.items():
+        if key != args.year:
+            continue
         print(f"Submitting for year {key}")
-        args.year = key
         for sample, sdict in tdict.items():
             args.samples = [sample]
             subsamples = sdict.get("subsamples", [])
