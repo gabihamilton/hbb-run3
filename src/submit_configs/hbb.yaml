@@ -60,8 +60,8 @@
       QCD_HT-1000to1200,
       QCD_HT-1200to1500,
       QCD_HT-1500to2000,
-    ], "files_per_job": 10, },
-    "TT": { "files_per_job": 10, },
+    ], "files_per_job": 5, },
+    "TT": { "files_per_job": 8, },
     "SingleTop": { "files_per_job": 20, },
     "Diboson": { "subsamples": [
       WW,
@@ -81,7 +81,7 @@
     "EWKV": { "files_per_job": 20, },
   },
   "2023BPix": {
-    "JetMET": { "files_per_job": 10, },
+    "JetMET": { "files_per_job": 8, },
     "Hbb": { "subsamples": [
       GluGluHto2B_PT-200_M-125,
       VBFHto2B_M-125_dipoleRecoilOn,

@@ -170,7 +170,9 @@ By default the yaml is: `src/submit_configs/hbb.yaml`.
 
 For example:
 ```
-python src/condor/submit_from_yaml.py --yaml src/submit_configs/hbb_condor.yaml --tag 25May23 --git-branch main --allow-diff-local-repo --year 2022EE --nano-version v12 --submit
+# For best practices, the script will automatically check if your code version is up to date in github. If you have changes that are not committed/pushed use --allow-diff-local-repo
+
+python src/condor/submit_from_yaml.py --yaml src/submit_configs/hbb.yaml --tag 25May23 --git-branch main --allow-diff-local-repo --year 2022EE
 ```
 
 To check whether jobs have finished use `src/condor/check_jobs.py`.
@@ -178,4 +180,17 @@ To check whether jobs have finished use `src/condor/check_jobs.py`.
 Example:
 ```
 python src/condor/check_jobs.py  --location /eos/uscms/store/user/lpchbbrun3/cmantill/ --tag 25Jun25_v12 --year 2023
+```
+
+To check whether jobs have finished use `src/condor/check_jobs.py`.
+
+Example:
+```
+python src/condor/check_jobs.py  --location /eos/uscms/store/user/lpchbbrun3/cmantill/ --tag 25Jun25_v12 --year 2023
+```
+## Plotting features from parquet files
+
+Example:
+```
+python make_histos.py  --region signal-all --year 2022
 ```
