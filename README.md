@@ -2,17 +2,10 @@
 
 ## Setup environment
 
-**Singularity**: (for submitting jobs)
-Set up environment by following instructions at https://github.com/CoffeaTeam/lpcjobqueue/
+Always make sure you have a valid grid certificate (`voms-proxy-init -voms cms -valid 192:00`).
+It is good practice to always run your analysis within a dedicated virtual environment.
 
-Ensure you have a valid grid certificate.
-
-Enable singularity
-```bash
-./shell coffeateam/coffea-dask-almalinux9:latest
-```
-
-**Virtual environment**: (for testing locally)
+**Virtual environment**:
 
 The instructions below will do the following:
 
@@ -83,20 +76,35 @@ echo 'export PRE_COMMIT_HOME=~./nobackup/pre-commit/.pre-commit-cache' >> ~/.bas
 source ~/.bashrc
 ```
 
+**Singularity**: (for submitting jobs with Dask)
+Set up environment by following instructions at https://github.com/CoffeaTeam/lpcjobqueue/
+
+Ensure you have a valid grid certificate (`voms-proxy-init -voms cms -valid 192:00`)
+
+Enable singularity
+```bash
+./shell coffeateam/coffea-dask-almalinux9:latest
+```
+
+
+
 ## Run processor locally
 
-**In your micromamba environment:**
+**Activate your micromamba environment:**
+Remember to reload micromamba to use it
 ```
+source ~/.bashrc
 micromamba activate hbb
 ```
 
+To run on a sinfle file (starting index at 0, ending index at 1) for one subsample:
 ```bash
-# to run on a single file (starting index at 0, ending index at 1) for one subsample
 python src/run.py --sample Hbb --subsample GluGluHto2B_PT-200_M-125 --starti 0 --endi 1
-# to save skim, add:
---save-skim
+```
+To save skim, add `--save-skim`
 
-# to run on multiple subsamples
+To run on multiple subsamples
+```
 python src/run.py --sample Hbb --subsample GluGluHto2B_PT-200_M-125  VBFHto2B_M-125 --starti 0 --endi 1
 ```
 
@@ -106,19 +114,17 @@ python src/run.py --sample Hbb --subsample GluGluHto2B_PT-200_M-125  VBFHto2B_M-
 
 Run the processor for a certain year:
 ```bash
-python3 submit.py --year $YEAR --tag $TAG --yaml src/submit_configs/hbb_example.yaml
+python3 src/submit.py --year $YEAR --tag $TAG --yaml src/submit_configs/hbb_example.yaml
 ```
 e.g.:
 ```
-python3 submit.py --year 2022 --tag test --yaml src/submit_configs/hbb_example.yaml
+python3 src/submit.py --year 2022 --tag test --yaml src/submit_configs/hbb_example.yaml
 ```
 
-
-Format your tags as `TAG=YRMonthDay` e.g. `TAG=25May22`.
-
-To enable the skimming option, add:
+Format your tags like `TAG=YRMonthDay` e.g. `TAG=25May22`:
 ```bash
---save-skim
+export YEAR=2022
+export TAG=25May22
 ```
 
 The processor will output parquet files for each of the regions defined in categorizer.py, for example:
@@ -142,11 +148,12 @@ proxy has expired
 if your proxy is not valid in the dask submission.
 Note: Start your proxy outside your `./shell` singularity environment.
 
+
 ## Submit jobs with CONDOR
 
 To submit a specific subsample:
 ```bash
-python src/condor/submit.py --tag $TAG  --samples Hbb --subsamples GluGluHto2B_PT-200_M-125 --git-branch main  --allow-diff-local-repo
+python src/condor/submit.py --tag $TAG  --samples Hbb --subsamples GluGluHto2B_PT-200_M-125 --git-branch main  --allow-diff-local-repo --submit
 ```
 - Format your tags as `TAG=YRMonthDay` e.g. `TAG=25May22`.
 - You must specify the git branch name
@@ -154,19 +161,16 @@ python src/condor/submit.py --tag $TAG  --samples Hbb --subsamples GluGluHto2B_P
 
 This will create a set of condor submission files. To submit add: `--submit`.
 
-To submit a set of samples (this will submit all years in that yaml file:
+To submit a set of samples:
 ```bash
-nohup python src/condor/submit_from_yaml.py --tag $TAG --yaml src/submit_configs/${YAML}.yaml --year $YEAR &> tmp/submitout.txt &
+nohup python src/condor/submit_from_yaml.py --tag $TAG --yaml src/submit_configs/${YAML}.yaml --year $YEAR --git-branch main --nano-version v12 --submit &> tmp/submitout.txt &
 ```
 
 By default the yaml is: `src/submit_configs/hbb.yaml`.
 
 For example:
 ```
-# The git branch should be specified
-# For best practices, the script will automatically check if your code version is up to date in github. If you have changes that are not committed/pushed use --allow-diff-local-repo
-
-python src/condor/submit_from_yaml.py --yaml src/submit_configs/hbb.yaml --tag 25May23 --git-branch main --allow-diff-local-repo --year 2022EE
+python src/condor/submit_from_yaml.py --yaml src/submit_configs/hbb_condor.yaml --tag 25May23 --git-branch main --allow-diff-local-repo --year 2022EE --nano-version v12 --submit
 ```
 
 To check whether jobs have finished use `src/condor/check_jobs.py`.
