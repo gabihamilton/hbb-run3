@@ -15,7 +15,7 @@ from hbb.common_vars import LUMI
 hep.style.use("CMS")
 
 
-def plot_ptbin_stack(hists, category, year, outdir, save_individual):
+def plot_ptbin_stack(hists, category, year, outdir, save_individual, region):
     pt_axis_name = "pt1"
 
     # Load style configuration
@@ -98,7 +98,9 @@ def plot_ptbin_stack(hists, category, year, outdir, save_individual):
             year=year,
         )
         fig.savefig(
-            f"{outdir}/{year}_{category}_ptbin{pt_low}_{pt_high}.png", dpi=300, bbox_inches="tight"
+            f"{outdir}/{year}_{region}_{category}_ptbin{pt_low}_{pt_high}.png",
+            dpi=300,
+            bbox_inches="tight",
         )
 
         if save_individual:
@@ -123,7 +125,7 @@ def main(args):
     histograms = {}
     for year in args.year:
         print(f"Loading histograms for year: {year}")
-        pkl_path = Path(args.indir) / f"histograms_{year}.pkl"
+        pkl_path = Path(args.indir) / f"histograms_{year}_{args.region}.pkl"
         with pkl_path.open("rb") as f:
             histograms_tmp = pickle.load(f)
 
@@ -154,7 +156,14 @@ def main(args):
     print(
         f"Plotting histograms for category: {category}, year: {year}, output directory: {args.outdir} \n"
     )
-    plot_ptbin_stack(histograms, category, year, args.outdir, save_individual=args.save_individual)
+    plot_ptbin_stack(
+        histograms,
+        category,
+        year,
+        args.outdir,
+        save_individual=args.save_individual,
+        region=args.region,
+    )
 
 
 if __name__ == "__main__":
@@ -185,6 +194,12 @@ if __name__ == "__main__":
         help="Save individual histograms for each process",
         action="store_true",
         default=False,
+    )
+    parser.add_argument(
+        "--region",
+        help="Analysis region to plot",
+        type=str,
+        required=True,
     )
     args = parser.parse_args()
     main(args)
