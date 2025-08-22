@@ -13,10 +13,4 @@ outfiles/
 *.jdl
 docker_stderror
 *.pkl
-condor_submitout.txt
-condor_submitout2022.txt
-python/log.txt
-python/nohup.out
-python/plot_zgamma_script.py
-~./
 *~
