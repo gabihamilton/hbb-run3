@@ -24,9 +24,7 @@ axis_to_histaxis = {
     "msd1": hist.axis.Regular(23, 40, 201, name="msd1", label="Jet 0 $m_{sd}$ [GeV]"),
     "mass1": hist.axis.Regular(30, 0, 200, name="mass1", label="Jet 0 PNet mass [GeV]"),
     "category": hist.axis.StrCategory([], name="category", label="Category", growth=True),
-    "genflavor": hist.axis.IntCategory(
-        [0, 1, 3, 4], name="genflavor", label="GenFlavor"
-    ),  # 1=b-jet, 3=c-jet, 4=light-flavor (up, down, strange, gluon), 0=unmatched.
+    "genflavor": hist.axis.IntCategory([0, 1, 2, 3], name="genflavor", label="Gen Flavor"),
 }
 
 # add more as needed
@@ -64,11 +62,16 @@ def fill_ptbinned_histogram(events, axis):
         axis_to_histaxis["pt1"],
         axis_to_histaxis["category"],
         axis_to_histaxis["genflavor"],
-    )  # Added genflavor axis
+    )
 
     for _process_name, data in events.items():
         weight_val = data["finalWeight"].astype(float)
         var = data[axis_to_column[axis]]
+
+        isRealData = "GenFlavor" not in data.columns
+        genflavordata = (
+            data["GenFlavor"].astype(int) if not isRealData else np.zeros_like(var, dtype=int)
+        )
 
         ### Event selection
 
@@ -76,7 +79,6 @@ def fill_ptbinned_histogram(events, axis):
         Txbb = data["FatJet0_pnetTXbb"]
         msd = data["FatJet0_msd"]
         pt = data["FatJet0_pt"]
-        genflavor_data = data["GenFlavor"].astype(int)  # Ensure genflavor is int
 
         # Pre-selection criteria
         pre_selection = (msd > 40) & (msd < 200) & (pt > 300) & (pt < 1200)
@@ -93,7 +95,7 @@ def fill_ptbinned_histogram(events, axis):
                 var[selection],
                 pt[selection],
                 category=category,
-                genflavor=genflavor_data[selection],  # Fill genflavor axis
+                genflavor=genflavordata[selection],
                 weight=weight_val[selection],
             )
 
@@ -102,21 +104,30 @@ def fill_ptbinned_histogram(events, axis):
 
 def main(args):
     year = args.year
+    region = args.region
 
     # Set the main directory where parquet files are stored
-    # DONE: make the dir_name an argument
+    # TODO: make the dir_name an argument
     MAIN_DIR = "/eos/uscms/store/group/lpchbbrun3/"
-    dir_name = args.dir_name  # <--------- MODIFIED
+    dir_name = "gmachado/25Aug12_v12"
+    # dir_name = "skims/25Jul21/"
     path_to_dir = f"{MAIN_DIR}/{dir_name}/"
 
     # Define the columns to load for each sample
-    load_columns = [
+    load_columns_mc = [
         "weight",
         "FatJet0_pt",
         "FatJet0_msd",
         # "FatJet0_pnetMass",
         "FatJet0_pnetTXbb",
         "GenFlavor",
+    ]
+    load_columns_data = [
+        "weight",
+        "FatJet0_pt",
+        "FatJet0_msd",
+        # "FatJet0_pnetMass",
+        "FatJet0_pnetTXbb",
     ]
     # Example filters
     # filters = [
@@ -145,50 +156,34 @@ def main(args):
 
     # Loop through each process individually to avoid loading everything at once
     for process, datasets in samples.items():
-        # Load only one sample at a time - EVEN THAT WAS TOO HEAVY FOR SOME
-        print(f"Processing: {process}")
-        # Now initialize a histogram for the entire process
-        process_h = hist.Hist(
-            axis_to_histaxis["msd1"],
-            axis_to_histaxis["pt1"],
-            axis_to_histaxis["category"],
-            axis_to_histaxis["genflavor"],
-        )  #  ADDED
+        load_columns = load_columns_data if process == "data" else load_columns_mc
+        print(f"Processing {process} for year {year}...")
+        # Load only one sample at a time
+        events = utils.load_samples(
+            data_dir,
+            {process: datasets},  # Dictionary with one process
+            columns=load_columns,
+            region=args.region,
+            filters=filters,
+        )
 
-        for dataset in datasets:  #   ADDED
-            print(f"   - Loading dataset: {dataset}")
-
-            # Now loop through each parquet file to save memory.
-            events = utils.load_samples(
-                data_dir,
-                {process: [dataset]},  # Loads a list containing just one parquet   ADDED
-                # {process: datasets},  # Dictionary with one process
-                columns=load_columns,
-                region=args.region,
-                filters=filters,
-            )
-            # If the dataset was empty or failed to load, skip it
-            if not events or len(next(iter(events.values()))) == 0:
-                print(f"    - Skipping empty dataset: {dataset}")
-                continue
-
-            # Fill the histogram with events from that one parquet
-            h_filled = fill_ptbinned_histogram(events, "msd1")
-            process_h += h_filled
-
-        # Store the combined histogram for the process
-        histograms[process] = process_h
-        # <----- END OF MOD ----->
+        if not events:
+            print(f"No events found for process {process} in year {year}. Skipping.")
+            continue
 
         # Fill histograms with the loaded events dictionary
-        # h = fill_ptbinned_histogram(events, "msd1")
-        # if process not in histograms:
-        #    histograms[process] = h
-        # else:
-        #    histograms[process] += h  # Combine histograms if process already exists
+        h = fill_ptbinned_histogram(events, "msd1")
+        if process not in histograms:
+            histograms[process] = h
+        else:
+            histograms[process] += h  # Combine histograms if process already exists
+
+    # Define the output directory
+    output_dir = Path(args.outdir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Define the output file
-    output_file = Path(f"histograms_{year}_{args.region}.pkl")
+    output_file = output_dir / f"histograms_{year}_{region}.pkl"
 
     # Save histograms to a pickle
     with output_file.open("wb") as f:
@@ -214,18 +209,17 @@ if __name__ == "__main__":
         choices=[
             "signal-all",
             "signal-ggf",
-            "control-zgamma",
-            "control-tt",
             "signal-vh",
             "signal-vbf",
-        ],  # add more as needed
+            "control-tt",
+            "control-zgamma",
+        ],
     )
-    # Add an argument for the directory name # <--- ADDED
     parser.add_argument(
-        "--dir_name",
-        help="Directory name inside the MAIN_DIR (e.g., 'cmantill/25Jun25_v12')",
+        "--outdir",
+        help="Output directory to save histograms.",
         type=str,
-        required=True,
+        default="histograms",  # Default is now 'histograms'
     )
     args = parser.parse_args()
 

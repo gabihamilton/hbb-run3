@@ -19,18 +19,14 @@ def plot_ptbin_stack(hists, category, year, outdir, save_individual, region):
     pt_axis_name = "pt1"
 
     # Load style configuration
-    # This assumes you have a YAML file named "style_hbb.yaml" in the current directory
     style_path = Path("style_hbb.yaml")
     with style_path.open() as stream:
         style = yaml.safe_load(stream)
 
-    # Axis to project onto
-    # proj_axis_name = "msd1"
-    mass_lo = 115  # GeV, lower edge of the mass window to blind
-    mass_hi = 135  # GeV, upper edge of the mass window to blind
+    mass_lo = 115
+    mass_hi = 135
 
     first_hist = next(iter(hists.values()))
-
     pt_axis = first_hist.axes[pt_axis_name]
     pt_edges = pt_axis.edges
 
@@ -38,43 +34,29 @@ def plot_ptbin_stack(hists, category, year, outdir, save_individual, region):
 
     for i in range(len(pt_edges) - 1):
         histograms_to_plot = {}
-
-        # Localize the pt bin edges
         pt_low = pt_edges[i]
         pt_high = pt_edges[i + 1]
         i_start = pt_axis.index(pt_low)
-        i_stop = pt_axis.index(pt_high)
-        print(f"Processing pt bin: {pt_low} - {pt_high} (indices: {i_start}, {i_stop})")
+        print(f"Processing pt bin: {pt_low} - {pt_high}")
 
-        # Select bin range on pt1
         for process, h in hists.items():
-            # Select that pt bin using the start index
-            h_proj = h[:, i_start, category]
-
-            # For debugging, print the yield of the histogram
-            # if process == "ggf-hbb":
-            #    print(sum(h_proj.values()))
+            # --- CRITICAL CHANGE 1: Sum over the new 'genflavor' axis ---
+            # First, select the pt and category, leaving a 2D hist (msd vs flavor)
+            h_proj_2d = h[:, i_start, category, :]
+            # Then, project it down to the 1D mass axis, summing over flavors
+            h_proj = h_proj_2d.project("msd1")
 
             if process == "data":
                 # Blind the mass window
-                edges = h_proj.axes[0].edges  # Assuming the first axis corresponds to mass
-                mask = (edges[:-1] >= mass_lo) & (
-                    edges[:-1] < mass_hi
-                )  # Mask for bins in the specified range
-                # Set the values to zero for these bins in both data and total background
+                edges = h_proj.axes[0].edges
+                mask = (edges[:-1] >= mass_lo) & (edges[:-1] < mass_hi)
                 data_val = h_proj.values()
-                data_val[mask] = 0  # Set bins to zero in the data histogram
-                # Update the data histogram for plotting with masked values set to zero
-                h_proj.values()[:] = data_val  # Update h_data with modified values
+                data_val[mask] = 0
+                h_proj.values()[:] = data_val
 
             histograms_to_plot[process] = h_proj
 
-        # print(histograms_to_plot)
-
-        # TODO: figure out the yield for each the processes (except QCD) so that they are sorted by yield
-        # For now, we will use a fixed order
         bkg_order = ["zjets", "wjets", "other", "top"]
-
         fig, (ax, rax) = ratio_plot(
             histograms_to_plot,
             sigs=["hbb"],
@@ -82,7 +64,7 @@ def plot_ptbin_stack(hists, category, year, outdir, save_individual, region):
             onto="qcd",
             style=style,
         )
-        # CMS label
+
         luminosity = (
             LUMI[year] / 1000.0
             if "-" not in year
@@ -97,6 +79,7 @@ def plot_ptbin_stack(hists, category, year, outdir, save_individual, region):
             com=13.6,
             year=year,
         )
+        # Use the region in the output filename for clarity
         fig.savefig(
             f"{outdir}/{year}_{region}_{category}_ptbin{pt_low}_{pt_high}.png",
             dpi=300,
@@ -120,34 +103,31 @@ def plot_ptbin_stack(hists, category, year, outdir, save_individual, region):
 
 
 def main(args):
-
-    # load histograms
     histograms = {}
     for year in args.year:
-        print(f"Loading histograms for year: {year}")
+        # --- CRITICAL CHANGE 2: Use the region to find the correct input file ---
+        print(f"Loading histograms for year: {year}, region: {args.region}")
         pkl_path = Path(args.indir) / f"histograms_{year}_{args.region}.pkl"
+        if not pkl_path.exists():
+            print(f"Error: File not found at {pkl_path}. Skipping.")
+            continue
+
         with pkl_path.open("rb") as f:
             histograms_tmp = pickle.load(f)
 
         print("Histograms loaded successfully!")
-        # Print the structure of the first histogram for debugging
-        for h in histograms_tmp.values():
-            print(f"Histogram structure: {h} \n")
-            break
-
         if not histograms:
             histograms = histograms_tmp
         else:
-            # Combine histograms for the same process across years
             for process, h in histograms_tmp.items():
                 if process in histograms:
-                    histograms[process] = histograms[process] + h
+                    histograms[process] += h
                 else:
                     histograms[process] = h
 
-    print("Processes in histograms:", histograms.keys())
-    # Join the years into a single string if multiple years are provided
-    year = args.year[0] if len(args.year) == 1 else "-".join(f"{y}" for y in args.year)
+    if not histograms:
+        print("No histograms were loaded. Exiting.")
+        return
 
     output_dir = Path(args.outdir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -167,7 +147,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="Make histograms for a given year.")
     parser.add_argument(
         "--year",
