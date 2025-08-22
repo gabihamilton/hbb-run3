@@ -1,6 +1,8 @@
 {
   "2022": {
     "JetMET": { "files_per_job": 8, },
+    "Muon": { "files_per_job": 6, },
+    "GJets": { "files_per_job": 6, },
     "Hbb": { "subsamples": [
       GluGluHto2B_PT-200_M-125,
       VBFHto2B_M-125_dipoleRecoilOn,
@@ -19,6 +21,8 @@
   },
   "2022EE": {
     "JetMET": { "files_per_job": 6, },
+    "Muon": { "files_per_job": 6, },
+    "GJets": { "files_per_job": 6, },
     "Hbb": { "subsamples": [
       GluGluHto2B_PT-200_M-125,
       VBFHto2B_M-125_dipoleRecoilOn,
@@ -42,6 +46,8 @@
       JetMET_Run2023Cv3,
       JetMET_Run2023Cv4,
     ], "files_per_job": 8, },
+    "Muon": { "files_per_job": 6, },
+    "GJets": { "files_per_job": 6, },
     "Hbb": { "subsamples": [
       GluGluHto2B_PT-200_M-125,
       VBFHto2B_M-125_dipoleRecoilOn,
@@ -82,6 +88,8 @@
   },
   "2023BPix": {
     "JetMET": { "files_per_job": 8, },
+    "Muon": { "files_per_job": 6, },
+    "GJets": { "files_per_job": 6, },
     "Hbb": { "subsamples": [
       GluGluHto2B_PT-200_M-125,
       VBFHto2B_M-125_dipoleRecoilOn,
