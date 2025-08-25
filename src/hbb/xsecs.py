@@ -85,20 +85,34 @@ xsecs["TBbarQ_t-channel_4FS"] = 145.0
 
 # Higgs
 xsecs["GluGluHto2B_M-125"] = 51.53 * BR_HBB  # 29.93
+xsecs["GluGluHto2C_M-125"] = 51.53 * BR_HCC  # 29.93
 # SX: took XSDB NLO number (0.5246) and multiplied it by the NNLO/NLO ratio for inclusive ggH from 13 TeV
 xsecs["GluGluHto2B_PT-200_M-125"] = 0.5246 * (43.92 / 27.8) * BR_HBB
+xsecs["GluGluHto2C_PT-200_M-125"] = 0.5247 * (43.92 / 27.8) * BR_HCC
 # https://twiki.cern.ch/twiki/bin/view/LHCPhysics/LHCHWG136TeVxsec_extrap
 xsecs["VBFHto2B_M-125_dipoleRecoilOn"] = 4.023 * BR_HBB  # 2.34
+xsecs["VBFHto2C_M-125_dipoleRecoilOn"] = 4.023 * BR_HCC  # 2.34
 xsecs["WminusH_Hto2B_Wto2Q_M-125"] = 0.8889 * BR_WQQ * BR_HBB  # 0.349
+xsecs["WminusH_Hto2C_Wto2Q_M-125"] = 0.8889 * BR_WQQ * BR_HCC  
 xsecs["WminusH_Hto2B_WtoLNu_M-125"] = 0.8889 * BR_WLNU * BR_HBB  # 0.167
+xsecs["WminusH_Hto2C_WtoLNu_M-125"] = 0.8889 * BR_WLNU * BR_HCC  
 xsecs["WplusH_Hto2B_Wto2Q_M-125"] = 0.5677 * BR_WQQ * BR_HBB  # 0.222
+xsecs["WplusH_Hto2C_Wto2Q_M-125"] = 0.5677 * BR_WQQ * BR_HCC 
 xsecs["WplusH_Hto2B_WtoLNu_M-125"] = 0.5677 * BR_WLNU * BR_HBB  # 0.106
+xsecs["WplusH_Hto2C_WtoLNu_M-125"] = 0.5677 * BR_WLNU * BR_HBB  
 xsecs["ZH_Hto2B_Zto2L_M-125"] = 0.8079 * BR_ZLL * BR_HBB
+xsecs["ZH_Hto2C_Zto2L_M-125"] = 0.8079 * BR_ZLL * BR_HCC
 xsecs["ZH_Hto2B_Zto2Q_M-125"] = 0.8079 * BR_ZQQ * BR_HBB
+xsecs["ZH_Hto2C_Zto2Q_M-125"] = 0.8079 * BR_ZQQ * BR_HCC
+xsecs["ZH_Hto2C_Zto2Nu_M-125"] = 0.8079 * BR_ZLNU * BR_HCC
 xsecs["ggZH_Hto2B_Zto2L_M-125"] = 0.1360 * BR_ZLL * BR_HBB
+xsecs["ggZH_Hto2C_Zto2L_M-125"] = 0.1360 * BR_ZLL * BR_HCC
 xsecs["ggZH_Hto2B_Zto2Nu_M-125"] = 0.1360 * BR_ZLNU * BR_HBB
+xsecs["ggZH_Hto2C_Zto2Nu_M-125"] = 0.1360 * BR_ZLNU * BR_HCC
 xsecs["ggZH_Hto2B_Zto2Q_M-125"] = 0.1360 * BR_ZQQ * BR_HBB
+xsecs["ggZH_Hto2C_Zto2Q_M-125"] = 0.1360 * BR_ZQQ * BR_HCC
 xsecs["ttHto2B_M-125"] = 0.5700 * BR_HBB
+xsecs["ttHto2C_M-125"] = 0.5700 * BR_HCC
 
 # V+Jets
 xsecs["Wto2Q-3Jets_HT-200to400"] = 2723.0
