@@ -90,7 +90,7 @@ def format_legend(ax, ncols=2, handles_labels=None, **kwargs):
 def ratio_plot(
     hist_dict: dict[hist.Hist],
     # Sample plotting opts
-    sigs: list[str] | None = None,  # List of samples considered signals
+    sigs: list[str],  # List of samples considered signals  | None = None
     bkgs: (
         list[str] | None
     ) = None,  # List of samples considered background - exclude "onto" sample i.e. QCD
