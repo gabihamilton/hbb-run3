@@ -66,23 +66,6 @@ top:
   - tt
   - singletop
 
-
-
-b-jet:
-  label: 'b-jet'
-  color: '#e41a1c' # Example color (red)
-c-jet:
-  label: 'c-jet'
-  color: '#4daf4a' # Example color (green)
-light-jet:
-  label: 'light-jet'
-  color: '#377eb8' # Example color (blue)
-unmatched:
-  label: 'Unmatched'
-  color: '#984ea3' # Example color (purple)
-
-
-
 other:
   label: $Other$
   color: 'grey'
