@@ -66,7 +66,7 @@ def run(year: str, fileset: dict, args: argparse.Namespace):
         recalculate_steps=False,
         files_per_batch=1,
         file_exceptions=(OSError,),
-        step_size=20_000,
+        step_size=10_000,
         save_form=False,
         uproot_options={
             "xrootd_handler": uproot.source.xrootd.MultithreadedXRootDSource,
