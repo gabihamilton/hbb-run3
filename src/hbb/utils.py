@@ -4,6 +4,7 @@ Common functions for processors.
 
 from __future__ import annotations
 
+# In src/hbb/utils.py
 import pickle
 import warnings
 from pathlib import Path
@@ -13,6 +14,8 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from coffea.analysis_tools import PackedSelection
+
+# ... other imports
 
 P4 = {
     "eta": "Eta",
@@ -69,6 +72,7 @@ def get_sum_genweights(data_dir: Path, dataset: str) -> float:
     :return: The sum of genweights for the dataset.
     """
     total_sumw = 0
+
     try:
         # Load the genweights from the pickle file
         for pickle_file in list(Path(data_dir / dataset / "pickles").glob("*.pkl")):
@@ -123,13 +127,41 @@ def load_samples(
             # print(list(Path(data_dir / dataset / "parquet").glob(f'{region}*.parquet')))
             # print(f"Columns to load: {columns_to_load}")
 
+            search_path = Path(data_dir / dataset / "parquet" / region)
+            # print(f"\n[DEBUG] Script is searching in path: {search_path}\n")
+
+            # --- REPLACE THE OLD 'try' BLOCK WITH THIS ---
             try:
-                # Load the dataset into a DataFrame
+                # Use os.listdir() which can be more robust on network filesystems
+                if search_path.exists():
+                    file_list = [f for f in search_path.iterdir() if f.name.endswith(".parquet")]
+                    # print(f"[DEBUG] Found files with os.listdir: {file_list}")
+                else:
+                    print(f"[DEBUG] Path does not exist: {search_path}")
+                    file_list = []
+
+                # If no files were found, skip to the next dataset
+                if not file_list:
+                    warnings.warn(
+                        f"No parquet files found in {search_path}. Skipping dataset {dataset}.",
+                        stacklevel=2,
+                    )
+                    continue
+
                 events = pd.read_parquet(
-                    list(Path(data_dir / dataset / "parquet").glob(f"{region}*.parquet")),
+                    file_list,
                     filters=filters,
                     columns=columns_to_load,
                 )
+            # --- END REPLACEMENT ---
+
+            # try:
+            # Load the dataset into a DataFrame
+            #    events = pd.read_parquet(
+            #        list(Path(data_dir / dataset / "parquet").glob(f"{region}*.parquet")),
+            #        filters=filters,
+            #        columns=columns_to_load,
+            #    )
             except pa.lib.ArrowInvalid as e:
                 warnings.warn(f"ArrowInvalid error: {e}. Skipping dataset {dataset}.", stacklevel=2)
                 print("List of columns attempted to load: ", columns_to_load)

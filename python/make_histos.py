@@ -119,6 +119,9 @@ def main(args):
         # Loop through each dataset within the process
         for dataset in datasets:
             # Load only one dataset at a time to save memory
+            search_path = Path(data_dir / dataset / "parquet" / region)
+            print(f"\n[DEBUG] Script is searching for files in: {search_path}\n")
+
             events = utils.load_samples(
                 data_dir,
                 {process: [dataset]},  # Pass a list with a single dataset
@@ -134,6 +137,13 @@ def main(args):
             # Fill the histogram with the events from this single dataset
             h = fill_ptbinned_histogram(h, events, "msd1")
 
+        # --- ADDED CHECK ---
+        # Only add the histogram to our dictionary if it has entries
+        if h.sum() == 0:
+            print(
+                f"WARNING: No events were found for the entire '{process}' process group. Skipping."
+            )
+            continue
         # Add the fully filled histogram for the process to the dictionary
         histograms[process] = h
 
