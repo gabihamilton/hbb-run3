@@ -388,6 +388,7 @@ class categorizer(SkimmerABC):
                 "metfilter",
                 "minjetkin_zgamma",
                 "atleastonephoton",
+                "antiak4btagMediumOppHem",
             ],
         }
 
