@@ -229,6 +229,15 @@ class categorizer(SkimmerABC):
             & (abs(candidatejet.eta) < 2.5),
         )
 
+        selection.add(
+            "minjetkin_zgamma",
+            (candidatejet.pt >= 200)  # Loosened pt cut
+            & (candidatejet.pt < 1200)
+            & (candidatejet.msd >= 20.0)  # Loosened msd cut
+            & (candidatejet.msd < 201.0)
+            & (abs(candidatejet.eta) < 2.5),
+        )
+
         selection.add("particleNetXbbpass", (candidatejet.particleNet_XbbVsQCD >= 0.5))
 
         # only consider 4 AK4 jets leading in pT to be consistent with old framework
@@ -291,6 +300,7 @@ class categorizer(SkimmerABC):
         leadingphoton = ak.firsts(goodphotons)
 
         selection.add("onephoton", (nphotons == 1))
+        selection.add("atleastonephoton", (nphotons >= 1))
         selection.add("passphotonveto", (nphotons == 0))
 
         gen_variables = {}
@@ -376,9 +386,8 @@ class categorizer(SkimmerABC):
                 "egammatrigger",
                 "lumimask",
                 "metfilter",
-                "minjetkin",
-                "ak4btagMedium08",
-                "onephoton",
+                "minjetkin_zgamma",
+                "atleastonephoton",
             ],
         }
 
