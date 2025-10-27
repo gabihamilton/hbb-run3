@@ -201,18 +201,14 @@ class categorizer(SkimmerABC):
         selection.add("2FJ", ak.num(goodfatjets, axis=1) == 2)
         selection.add("not2FJ", ak.num(goodfatjets, axis=1) != 2)
 
-        xbbfatjets = goodfatjets[
-            ak.argsort(goodfatjets.pnetXbbXcc, axis=1, ascending=False)
-        ]
+        xbbfatjets = goodfatjets[ak.argsort(goodfatjets.pnetXbbXcc, axis=1, ascending=False)]
 
         candidatejet = ak.firsts(xbbfatjets[:, 0:1])
         subleadingjet = ak.firsts(xbbfatjets[:, 1:2])
 
         selection.add(
             "minjetkin",
-            (candidatejet.pt >= 300)
-            & (candidatejet.pt < 1200)
-            & (candidatejet.msd >= 40.0)
+            (candidatejet.pt >= 300) & (candidatejet.pt < 1200) & (candidatejet.msd >= 40.0)
             # & (candidatejet.msd < 201.0)
             & (abs(candidatejet.eta) < 2.5),
         )
@@ -244,6 +240,10 @@ class categorizer(SkimmerABC):
         selection.add(
             "antiak4btagMediumOppHem",
             ak.max(ak4_opphem_ak8.btagPNetB, axis=1, mask_identity=False) < btag_cut,
+        )
+        selection.add(
+            "antiak4btagMedium",
+            ak.max(ak4_outside_ak8.btagPNetB, axis=1, mask_identity=False) < btag_cut,
         )
         selection.add(
             "ak4btagMedium08",
@@ -381,7 +381,7 @@ class categorizer(SkimmerABC):
                 "metfilter",
                 "minjetkin_zgamma",
                 "atleastonephoton",
-                "antiak4btagMediumOppHem",
+                "antiak4btagMedium",
             ],
         }
 
@@ -507,22 +507,26 @@ class categorizer(SkimmerABC):
                 compute=False,
             )
 
-            allcuts = set([])
+            allcuts = set()
             cut = selection.all(*allcuts)
-            output['cutflow'].fill(dataset=dataset,
-                                    region=region,
-                                    genflavor=normalize(genflavor, None),
-                                    cut=0,
-                                    weight=nominal_weight)
+            output["cutflow"].fill(
+                dataset=dataset,
+                region=region,
+                genflavor=normalize(genflavor, None),
+                cut=0,
+                weight=nominal_weight,
+            )
             for i, cut in enumerate(selections):
                 allcuts.add(cut)
-                cut = selection.all(*allcuts)
-                output['cutflow'].fill(dataset=dataset,
-                                        region=region,
-                                        genflavor=normalize(genflavor, cut),
-                                        cut=i + 1,
-                                        weight=nominal_weight[cut])
-                
+                cut = selection.all(*allcuts)  # noqa: PLW2901
+                output["cutflow"].fill(
+                    dataset=dataset,
+                    region=region,
+                    genflavor=normalize(genflavor, cut),
+                    cut=i + 1,
+                    weight=nominal_weight[cut],
+                )
+
         for region in regions:
             if self._save_skim:
                 print(region)
