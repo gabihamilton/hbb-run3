@@ -217,7 +217,7 @@ class categorizer(SkimmerABC):
             "minjetkin_zgamma",
             (candidatejet.pt >= 200)  # Loosened pt cut
             & (candidatejet.pt < 1200)
-            & (candidatejet.msd >= 20.0)  # Loosened msd cut
+            & (candidatejet.msd >= 0.0)  # Loosened msd cut
             & (candidatejet.msd < 201.0)
             & (abs(candidatejet.eta) < 2.5),
         )
