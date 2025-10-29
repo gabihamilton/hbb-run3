@@ -16,3 +16,4 @@ nobackup/
 *.pkl
 *~
 plots/
+*.txt
