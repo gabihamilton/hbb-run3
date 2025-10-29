@@ -58,21 +58,34 @@ hbb:
   - vh-hbb
   - vbf-hbb
 
-top:
-  label: Top
-  color: 'teal'
-  hatch: /////
-  contains:
-  - tt
-  - singletop
+#top:
+#  label: Top
+#  color: '#fbe183'
+#  hatch: null
+#  contains:
+  #- tt_had
+  #- tt_dilep
+  #- tt_semilep
+  #- tt
+  #- singletop
+
+tt:
+  label: $t\bar{t}$
+  color: '#75884b'
+  hatch: null
+
 
 other:
   label: $Other$
-  color: 'grey'
-  hatch: \\\\\
+  color: '#566573'
+  hatch: null
   contains:
   - diboson
   - ewkv
+  - singletop
+  - wjets
+  - zjets
+  - ttgamma
 
 
 # Z-jets colors (shades of blue-green)
@@ -97,4 +110,26 @@ wjets_c-jet:
 wjets_light-jet:
   label: 'W->light-jet'
   color: '#b7e4c7' # Lighter green
+  hatch: null
+
+
+# Add these new entries to your style file
+zgamma:
+  label: '$Z+\gamma$'
+  color: '#59385c'
+  hatch: null
+
+wgamma:
+  label: '$W+\gamma$'
+  color: '#e76f51'
+  hatch: null
+
+ttgamma:
+  label: '$t\bar{t}+\gamma$'
+  color: '#2a9d8f'
+  hatch: null
+
+gjets:
+  label: '$\gamma$+jets'
+  color: '#264653'
   hatch: null

@@ -7,18 +7,22 @@ from pathlib import Path
 
 import hist
 import numpy as np
-from common import common_mc, data_by_year
+from common import common_mc, data_by_year, data_by_year_muon, data_by_year_zgamma
 
 from hbb import utils
 
 # Define the possible ptbins
-ptbins = np.array([300, 450, 500, 550, 600, 675, 800, 1200])
+# ptbins = np.array([300, 450, 500, 550, 600, 675, 800, 1200])
+# ptbins = np.array([200, 500, 1200])
+ptbins = np.array([0, 500, 1200])
+
+# ptbins_zgamma = np.array([200, 300, 450, 500, 550, 600, 675, 800, 1200])
 
 # Define the histogram axes
 axis_to_histaxis = {
     "pt1": hist.axis.Variable(ptbins, name="pt1", label=r"Jet 0 $p_{T}$ [GeV]"),
     "pt2": hist.axis.Variable(ptbins, name="pt2", label=r"Jet 1 $p_{T}$ [GeV]"),
-    "msd1": hist.axis.Regular(23, 40, 201, name="msd1", label="Jet 0 $m_{sd}$ [GeV]"),
+    "msd1": hist.axis.Regular(23, 0, 201, name="msd1", label="Jet 0 $m_{sd}$ [GeV]"),
     "mass1": hist.axis.Regular(30, 0, 200, name="mass1", label="Jet 0 PNet mass [GeV]"),
     "category": hist.axis.StrCategory([], name="category", label="Category", growth=True),
     "genflavor": hist.axis.IntCategory([0, 1, 2, 3], name="genflavor", label="Gen Flavor"),
@@ -51,13 +55,20 @@ def fill_ptbinned_histogram(h, events, axis):
         )
 
         # Event selection
+        Txcc = data["FatJet0_pnetTXcc"]
         Txbb = data["FatJet0_pnetTXbb"]
         msd = data["FatJet0_msd"]
         pt = data["FatJet0_pt"]
-        pre_selection = (msd > 40) & (msd < 200) & (pt > 300) & (pt < 1200)
+        print("pt min:", np.min(pt), " pt max:", np.max(pt))
+        pre_selection = (msd > 0) & (msd < 200) & (pt > 200) & (pt < 1200)
         selection_dict = {
-            "pass": pre_selection & (Txbb > 0.95),
-            "fail": pre_selection & (Txbb < 0.95),
+            "bb_pass": pre_selection & (Txbb > 0.95),
+            "bb_fail": pre_selection & (Txbb < 0.95),
+            "cc_pass": pre_selection & (Txcc > 0.95),
+            "cc_fail": pre_selection & (Txcc < 0.95),
+            "bbcc_fail": pre_selection & (Txbb < 0.95) & (Txcc < 0.95),
+            "bbfail_ccpass": pre_selection & (Txbb < 0.95) & (Txcc > 0.95),
+            "bbcc_pass": pre_selection & (Txbb > 0.95) & (Txcc > 0.95),
         }
 
         # Fill histograms
@@ -77,7 +88,7 @@ def main(args):
     region = args.region
 
     MAIN_DIR = "/eos/uscms/store/group/lpchbbrun3/"
-    dir_name = "gmachado/25Aug27_v12"
+    dir_name = "gmachado/25Oct28_v12"
     path_to_dir = f"{MAIN_DIR}/{dir_name}/"
 
     load_columns_mc = [
@@ -85,6 +96,7 @@ def main(args):
         "FatJet0_pt",
         "FatJet0_msd",
         "FatJet0_pnetTXbb",
+        "FatJet0_pnetTXcc",
         "GenFlavor",
     ]
     load_columns_data = [
@@ -92,14 +104,26 @@ def main(args):
         "FatJet0_pt",
         "FatJet0_msd",
         "FatJet0_pnetTXbb",
+        "FatJet0_pnetTXcc",
     ]
     filters = None
 
     histograms = {}
     data_dir = Path(path_to_dir) / year
+
+    # ---- Select correct data samples and mc ----
+
+    if region == "control-zgamma":
+        data_samples = data_by_year_zgamma.get(year, {})
+    elif region == "control-tt":
+        data_samples = data_by_year_muon.get(year, {})
+    else:
+        # Default to JetMET for signal regions
+        data_samples = data_by_year.get(year, {})
+
     samples = {
         **common_mc,
-        "data": data_by_year[year],
+        "data": data_samples,
     }
 
     # --- MAIN LOOP RESTRUCTURED ---
@@ -119,8 +143,8 @@ def main(args):
         # Loop through each dataset within the process
         for dataset in datasets:
             # Load only one dataset at a time to save memory
-            search_path = Path(data_dir / dataset / "parquet" / region)
-            print(f"\n[DEBUG] Script is searching for files in: {search_path}\n")
+            # search_path = Path(data_dir / dataset / "parquet" / region)
+            # print(f"\n[DEBUG] Script is searching for files in: {search_path}\n")
 
             events = utils.load_samples(
                 data_dir,

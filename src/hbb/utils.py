@@ -187,8 +187,8 @@ def load_samples(
                 events["finalWeight"] = events["weight"] / sum_genweights
             else:
                 # For data, we just keep the weight as is
-                events["weight_nonorm"] = events["weight"]
-                events["finalWeight"] = events["weight"]
+                # events["weight_nonorm"] = events["weight"]
+                events["finalWeight"] = 1.0  # events["weight"]
 
             # Add the DataFrame to the dictionary with the dataset name as the key
             events_list.append(events)
