@@ -13,8 +13,8 @@ from hbb import utils
 
 # Define the possible ptbins
 # ptbins = np.array([300, 450, 500, 550, 600, 675, 800, 1200])
-# ptbins = np.array([200, 500, 1200])
-ptbins = np.array([0, 500, 1200])
+ptbins = np.array([200, 500, 1200])
+# ptbins = np.array([0, 500, 1200])
 
 # ptbins_zgamma = np.array([200, 300, 450, 500, 550, 600, 675, 800, 1200])
 
@@ -88,7 +88,7 @@ def main(args):
     region = args.region
 
     MAIN_DIR = "/eos/uscms/store/group/lpchbbrun3/"
-    dir_name = "gmachado/25Oct28_v12"
+    dir_name = "gmachado/25Oct29_v12"
     path_to_dir = f"{MAIN_DIR}/{dir_name}/"
 
     load_columns_mc = [
