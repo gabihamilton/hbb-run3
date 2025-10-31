@@ -51,7 +51,9 @@ def fill_ptbinned_histogram(h, events, axis):
 
         isRealData = "GenFlavor" not in data.columns
         genflavordata = (
-            data["GenFlavor"].astype(int) if not isRealData else np.zeros_like(var, dtype=int)
+            data["GenFlavor"].astype(np.int8)
+            if not isRealData
+            else np.zeros_like(var, dtype=np.int8)
         )
 
         # Event selection
@@ -60,7 +62,7 @@ def fill_ptbinned_histogram(h, events, axis):
         msd = data["FatJet0_msd"]
         pt = data["FatJet0_pt"]
         print("pt min:", np.min(pt), " pt max:", np.max(pt))
-        pre_selection = (msd > 0) & (msd < 200) & (pt > 200) & (pt < 1200)
+        pre_selection = (msd > 20) & (msd < 200) & (pt > 200) & (pt < 1200)
         selection_dict = {
             "bb_pass": pre_selection & (Txbb > 0.95),
             "bb_fail": pre_selection & (Txbb < 0.95),
