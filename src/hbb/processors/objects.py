@@ -37,6 +37,13 @@ def good_photons(photons: PhotonArray):
     return photons[sel]
 
 
+def tight_photons(photons: PhotonArray):
+
+    sel = (photons.pt > 30) & (photons.isScEtaEB | photons.isScEtaEE) & (photons.cutBased == 3)
+
+    return photons[sel]
+
+
 def good_muons(muons: MuonArray):
     sel = (
         (muons.pt > 10)
@@ -105,7 +112,10 @@ def good_ak4jets(jets: JetArray):
 
     # JETID: https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetID13p6TeV
     sel = (
-        (jets.pt > 30) & (jets.jetidtight) & (jets.jetidtightlepveto) & (abs(jets.eta) < 5.0) 
+        (jets.pt > 30)
+        & (jets.jetidtight)
+        & (jets.jetidtightlepveto)
+        & (abs(jets.eta) < 5.0)
         & ~((jets.pt <= 50) & (abs(jets.eta) > 2.5) & (abs(jets.eta) < 3.0))
     )
 
@@ -116,7 +126,9 @@ def set_ak8jets(fatjets: FatJetArray):
     fatjets["msd"] = fatjets.msoftdrop
     fatjets["qcdrho"] = 2 * np.log(fatjets.msd / fatjets.pt)
     fatjets["pnetmass"] = fatjets.particleNet_massCorr * fatjets.mass
-    fatjets["pnetXbbXcc"] = (fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD) / (fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD + fatjets.particleNet_QCD)
+    fatjets["pnetXbbXcc"] = (fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD) / (
+        fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD + fatjets.particleNet_QCD
+    )
 
     if "globalParT_Xcs" in fatjets.fields:
         fatjets["ParTPQCD1HF"] = fatjets.globalParT_QCD1HF

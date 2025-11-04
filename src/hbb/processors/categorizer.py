@@ -33,6 +33,7 @@ from .objects import (
     good_photons,
     set_ak4jets,
     set_ak8jets,
+    tight_photons,
 )
 
 logger = logging.getLogger(__name__)
@@ -286,9 +287,10 @@ class categorizer(SkimmerABC):
         goodphotons = good_photons(events.Photon)
         nphotons = ak.num(goodphotons, axis=1)
         leadingphoton = ak.firsts(goodphotons)
+        ntightphotons = ak.num(tight_photons(events.Photon), axis=1)
 
         selection.add("onephoton", (nphotons == 1))
-        selection.add("atleastonephoton", (nphotons >= 1))
+        selection.add("atleastonephoton", (ntightphotons >= 1))
         selection.add("passphotonveto", (nphotons == 0))
 
         gen_variables = {}
