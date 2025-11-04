@@ -405,6 +405,13 @@ class categorizer(SkimmerABC):
         nominal_weight = ak.ones_like(events.run) if isRealData else weights_dict["weight"]
         gen_weight = ak.ones_like(events.run) if isRealData else events.genWeight
 
+        egamma_trigger_booleans = {}
+        for t in self._egammatriggers[self._year]:
+            if t in events.HLT.fields:
+                egamma_trigger_booleans[t] = events.HLT[t]
+            else:
+                egamma_trigger_booleans[t] = ak.values_astype(ak.zeros_like(events.run), bool)
+
         output_array = None
         if self._save_skim:
             # define "flat" output array
@@ -443,6 +450,7 @@ class categorizer(SkimmerABC):
                 "weight": nominal_weight,
                 "genWeight": gen_weight,
                 **gen_variables,
+                **egamma_trigger_booleans,
             }
 
             # extra variables for big array
