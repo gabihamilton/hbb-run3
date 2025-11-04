@@ -1,7 +1,7 @@
 {
     "observable" : {
         "name" : "msd",
-        "min" : 40, 
+        "min" : 40,
         "max" : 201,
         "nbins" : 23,
         "title" : "m_{sd} [GeV]",
@@ -36,6 +36,14 @@
         "mucr" : {
             "name" : "control-tt",
             "bins" : [450, 1200],
+            "bin_name" : "pt1",
+            "bin_pname" : "pt",
+            "branch_name" : "FatJet0_pt",
+            "bin_title" : "p_{T}"
+        },
+        "zgcr": {
+            "name" : "control-zgamma",
+            "bins" : [200,1200],
             "bin_name" : "pt1",
             "bin_pname" : "pt",
             "branch_name" : "FatJet0_pt",
