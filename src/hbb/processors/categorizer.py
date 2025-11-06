@@ -460,30 +460,29 @@ class categorizer(SkimmerABC):
                 **egamma_trigger_booleans,
             }
 
-            parT_array = {
-                "FatJet0_ParTPQCD": candidatejet.ParTPQCD,
-                "FatJet0_ParTPXbb": candidatejet.ParTPXbb,
-                "FatJet0_ParTPXcc": candidatejet.ParTPXcc,
-                "FatJet0_ParTPXqq": candidatejet.ParTPXqq,
-                "FatJet0_ParTPXcs": candidatejet.ParTPXcs,
-                "FatJet0_ParTPXbbVsQCD": candidatejet.ParTPXbbVsQCD,
-                "FatJet0_ParTPXccVsQCD": candidatejet.ParTPXccVsQCD,
-                "FatJet0_ParTPXbbXcc": candidatejet.ParTPXbbXcc,
-                "FatJet0_ParTmassGeneric": candidatejet.ParTmassGeneric,
-                "FatJet0_ParTmassX2p": candidatejet.ParTmassX2p,
-                "FatJet1_ParTPQCD": candidatejet.ParTPQCD,
-                "FatJet1_ParTPXbb": candidatejet.ParTPXbb,
-                "FatJet1_ParTPXcc": candidatejet.ParTPXcc,
-                "FatJet1_ParTPXqq": candidatejet.ParTPXqq,
-                "FatJet1_ParTPXcs": candidatejet.ParTPXcs,
-                "FatJet1_ParTPXbbVsQCD": candidatejet.ParTPXbbVsQCD,
-                "FatJet1_ParTPXccVsQCD": candidatejet.ParTPXccVsQCD,
-                "FatJet1_ParTPXbbXcc": candidatejet.ParTPXbbXcc,
-                "FatJet1_ParTmassGeneric": candidatejet.ParTmassGeneric,
-                "FatJet1_ParTmassX2p": candidatejet.ParTmassX2p,
-            }
-
             if "v12" not in self._nano_version:
+                parT_array = {
+                    "FatJet0_ParTPQCD": candidatejet.ParTPQCD,
+                    "FatJet0_ParTPXbb": candidatejet.ParTPXbb,
+                    "FatJet0_ParTPXcc": candidatejet.ParTPXcc,
+                    "FatJet0_ParTPXqq": candidatejet.ParTPXqq,
+                    "FatJet0_ParTPXcs": candidatejet.ParTPXcs,
+                    "FatJet0_ParTPXbbVsQCD": candidatejet.ParTPXbbVsQCD,
+                    "FatJet0_ParTPXccVsQCD": candidatejet.ParTPXccVsQCD,
+                    "FatJet0_ParTPXbbXcc": candidatejet.ParTPXbbXcc,
+                    "FatJet0_ParTmassGeneric": candidatejet.ParTmassGeneric,
+                    "FatJet0_ParTmassX2p": candidatejet.ParTmassX2p,
+                    "FatJet1_ParTPQCD": candidatejet.ParTPQCD,
+                    "FatJet1_ParTPXbb": candidatejet.ParTPXbb,
+                    "FatJet1_ParTPXcc": candidatejet.ParTPXcc,
+                    "FatJet1_ParTPXqq": candidatejet.ParTPXqq,
+                    "FatJet1_ParTPXcs": candidatejet.ParTPXcs,
+                    "FatJet1_ParTPXbbVsQCD": candidatejet.ParTPXbbVsQCD,
+                    "FatJet1_ParTPXccVsQCD": candidatejet.ParTPXccVsQCD,
+                    "FatJet1_ParTPXbbXcc": candidatejet.ParTPXbbXcc,
+                    "FatJet1_ParTmassGeneric": candidatejet.ParTmassGeneric,
+                    "FatJet1_ParTmassX2p": candidatejet.ParTmassX2p,
+                }
                 output_array = {**output_array, **parT_array}
 
             # extra variables for big array
