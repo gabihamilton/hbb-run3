@@ -9,6 +9,7 @@ from coffea.nanoevents.methods.nanoaod import (
     MuonArray,
     PhotonArray,
 )
+
 from hbb.corrections import correct_jetid
 
 
@@ -140,16 +141,31 @@ def set_ak8jets(fatjets: FatJetArray, year: str, nano_version: str):
         fatjets["ParTPXcs"] = fatjets.globalParT3_Xcs
         fatjets["ParTPXqq"] = fatjets.globalParT3_Xqq
 
-        fatjets["ParTPXbbVsQCD"] = fatjets.globalParT3_Xbb / (fatjets.globalParT3_Xbb + fatjets.globalParT3_QCD)
-        fatjets["ParTPXccVsQCD"] = fatjets.globalParT3_Xcc / (fatjets.globalParT3_Xcc + fatjets.globalParT3_QCD)
-        fatjets["ParTPXbbXcc"] = (fatjets.globalParT3_Xbb + fatjets.globalParT3_Xcc) / (fatjets.globalParT3_Xbb + fatjets.globalParT3_Xcc + fatjets.globalParT3_QCD)
+        fatjets["ParTPXbbVsQCD"] = fatjets.globalParT3_Xbb / (
+            fatjets.globalParT3_Xbb + fatjets.globalParT3_QCD
+        )
+        fatjets["ParTPXccVsQCD"] = fatjets.globalParT3_Xcc / (
+            fatjets.globalParT3_Xcc + fatjets.globalParT3_QCD
+        )
+        fatjets["ParTPXbbXcc"] = (fatjets.globalParT3_Xbb + fatjets.globalParT3_Xcc) / (
+            fatjets.globalParT3_Xbb + fatjets.globalParT3_Xcc + fatjets.globalParT3_QCD
+        )
 
         # ParT masses were trained with the masses WITHOUT the jet mass correction, so we have to undo the correction here
-        fatjets["ParTmassGeneric"] = fatjets.globalParT3_massCorrGeneric * (1 - fatjets.rawFactor) * fatjets.mass
-        fatjets["ParTmassX2p"] = fatjets.globalParT3_massCorrX2p * (1 - fatjets.rawFactor) * fatjets.mass
+        fatjets["ParTmassGeneric"] = (
+            fatjets.globalParT3_massCorrGeneric * (1 - fatjets.rawFactor) * fatjets.mass
+        )
+        fatjets["ParTmassX2p"] = (
+            fatjets.globalParT3_massCorrX2p * (1 - fatjets.rawFactor) * fatjets.mass
+        )
 
     fatjets["msd"] = fatjets.msoftdrop
-    fatjets["qcdrho"] = 2 * np.log(fatjets.msd / fatjets.pt)
+
+    epsilon = 0.000000001  # A very small positive number
+    # Clip msd so it's never zero or negative
+    clipped_msd = np.maximum(fatjets.msd, epsilon)
+    fatjets["qcdrho"] = 2 * np.log(clipped_msd / fatjets.pt)
+
     fatjets["pnetmass"] = fatjets.particleNet_massCorr * fatjets.mass
     fatjets["pnetXbbXcc"] = (fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD) / (
         fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD + fatjets.particleNet_QCD
