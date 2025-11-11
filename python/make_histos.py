@@ -41,8 +41,8 @@ axis_to_column = {
     "mass1": "FatJet0_pnetMass",
     "category": "category",
     "genflavor": "GenFlavor",
-    "met": "MET_pt",
-    "photon_pt": "Photon_pt",
+    "met": "MET",
+    "photon_pt": "Photon0_pt",
     "delta_phi": "delta_phi_photon_jet",  # This will be calculated on the fly
 }
 
@@ -55,8 +55,8 @@ def fill_ptbinned_histogram(h, events, axis, region):
     """
     for _process_name, data in events.items():
 
-        if "Photon_phi" in data.columns and "FatJet0_phi" in data.columns:
-            dphi = np.abs(data["Photon_phi"] - data["FatJet0_phi"])
+        if "Photon0_phi" in data.columns and "FatJet0_phi" in data.columns:
+            dphi = np.abs(data["Photon0_phi"] - data["FatJet0_phi"])
             # Wrap values > pi
             dphi = np.where(dphi > np.pi, 2 * np.pi - dphi, dphi)
             data["delta_phi_photon_jet"] = dphi  # Add as a new column to the dataframe
@@ -120,6 +120,7 @@ def main(args):
     region = args.region
 
     MAIN_DIR = "/eos/uscms/store/group/lpchbbrun3/"
+    # dir_name = "gmachado/25Oct27_v12"
     dir_name = "gmachado/25Nov9_v14_private"
     path_to_dir = f"{MAIN_DIR}/{dir_name}/"
 
@@ -132,11 +133,10 @@ def main(args):
         "GenFlavor",
         "Photon200",
         "Photon110EB_TightID_TightIso",
-        "MET_pt",
-        "Photon_pt",
-        "Photon_phi",
+        "MET",
+        "Photon0_pt",
+        "Photon0_phi",
         "FatJet0_phi",
-        "finalWeight",
     ]
     load_columns_data = [
         "weight",
@@ -146,11 +146,10 @@ def main(args):
         "FatJet0_pnetTXcc",
         "Photon200",
         "Photon110EB_TightID_TightIso",
-        "MET_pt",
-        "Photon_pt",
-        "Photon_phi",
+        "MET",
+        "Photon0_pt",
+        "Photon0_phi",
         "FatJet0_phi",
-        "finalWeight",
     ]
     filters = None
 
