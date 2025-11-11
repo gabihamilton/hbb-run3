@@ -120,7 +120,7 @@ def main(args):
     region = args.region
 
     MAIN_DIR = "/eos/uscms/store/group/lpchbbrun3/"
-    dir_name = "gmachado/25Oct27_v12"
+    dir_name = "gmachado/25Nov9_v14_private"
     path_to_dir = f"{MAIN_DIR}/{dir_name}/"
 
     load_columns_mc = [
