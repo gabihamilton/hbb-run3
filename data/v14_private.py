@@ -10,13 +10,13 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "JetMET_Run2022D": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022/JetMET/Run2022D-22Sep2023-v1_DAZSLE_PFNano",
             },
             "Muon": {
-                "Muon_Run2022C_single": "/store/group/lpcpfnano/PFNano_Run3/25v2/data_2022/SingleMuon/Run2022C-22Sep2023-v1_DAZSLE_PFNano",
-                "Muon_Run2022C": "/store/group/lpcpfnano/PFNano_Run3/25v2/data_2022/Muon/Run2022C-22Sep2023-v1_DAZSLE_PFNano",
+                "Muon_Run2022C_single": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022/SingleMuon/Run2022C-22Sep2023-v1_DAZSLE_PFNano",
+                "Muon_Run2022C": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022/Muon/Run2022C-22Sep2023-v1_DAZSLE_PFNano",
                 "Muon_Run2022D": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022/Muon/Run2022D-22Sep2023-v1_DAZSLE_PFNano",
             },
             "EGamma": {
-                "EGamma_Run2022C": "/store/group/lpcpfnano/PFNano_Run3/25v2/Run2022C-22Sep2023-v1_DAZSLE_PFNano/Run2022C-22Sep2023-v1_DAZSLE_PFNano",
-                "EGamma_Run2022D": "/store/group/lpcpfnano/PFNano_Run3/25v2/Run2022C-22Sep2023-v1_DAZSLE_PFNano/Run2022D-22Sep2023-v1_DAZSLE_PFNano",
+                "EGamma_Run2022C": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/EGamma/Run2022C-22Sep2023-v1_DAZSLE_PFNano/Run2022C-22Sep2023-v1_DAZSLE_PFNano",
+                "EGamma_Run2022D": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/EGamma/Run2022C-22Sep2023-v1_DAZSLE_PFNano/Run2022D-22Sep2023-v1_DAZSLE_PFNano",
             },
             "TTGamma": {
                 "TTG-1Jets_PTG-10to100": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/TTG-1Jets_PTG-10to100_TuneCP5_13p6TeV_amcatnloFXFXold-pythia8",
@@ -46,7 +46,7 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "ttHto2B_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2022/ttHto2B_M-125_TuneCP5_13p6TeV_powheg-pythia8",
             },
             "Hcc": {
-                "GluGluHto2C_M-125":  "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/GluGluHto2C_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
+                "GluGluHto2C_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/GluGluHto2C_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
                 "GluGluHto2C_PT-200_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/GluGluHto2C_PT-200_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
                 "VBFHto2C_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/VBFHto2C_M-125_TuneCP5_13p6TeV_powheg-pythia8",
                 "WminusH_Hto2C_Wto2Q_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/WminusH_Hto2C_Wto2Q_M-125_TuneCP5_13p6TeV_powheg-pythia8",
@@ -97,8 +97,8 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "WWto4Q_1Jets-4FS": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2022/WWto4Q-1Jets-4FS_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WZto4Q-1Jets-4FS": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2022/WZto4Q-1Jets-4FS_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
             },
-            "VJets_had_NLO": {}, #Need to run crab VJetsNLO
-            "VJets_lep_NLO": { #Need to run crab VJetsNLO
+            "VJets_had_NLO": {},  # Need to run crab VJetsNLO
+            "VJets_lep_NLO": {  # Need to run crab VJetsNLO
                 # "WtoLNu-2Jets_0J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "WtoLNu-2Jets_1J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "WtoLNu-2Jets_2J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
@@ -166,18 +166,13 @@ def get_datasets():  ## PRIVATE production with GloParTv2
             },
             "Muon": {
                 "Muon_Run2022E": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022EE/Muon/Run2022E-22Sep2023-v1_DAZSLE_PFNano",
-                "Muon_Run2022F":  "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022EE/Muon/Run2022F-22Sep2023-v2_DAZSLE_PFNano",
+                "Muon_Run2022F": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022EE/Muon/Run2022F-22Sep2023-v2_DAZSLE_PFNano",
                 "Muon_Run2022G": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022EE/Muon/Run2022G-22Sep2023-v1_DAZSLE_PFNano",
             },
             "EGamma": {
                 "EGamma_Run2022E": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022EE/EGamma/Run2022E-22Sep2023-v1_DAZSLE_PFNano",
                 "EGamma_Run2022F": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022EE/EGamma/Run2022F-22Sep2023-v1_DAZSLE_PFNano",
                 "EGamma_Run2022G": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/data_2022EE/EGamma/Run2022G-22Sep2023-v1_DAZSLE_PFNano",
-            },
-            "TTGamma": {
-                "TTG-1Jets_PTG-10to100": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
-                "TTG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
-                "TTG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
             },
             "TTGamma": {
                 "TTG-1Jets_PTG-10to100": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/TTG-1Jets_PTG-10to100_TuneCP5_13p6TeV_amcatnloFXFXold-pythia8",
@@ -207,7 +202,7 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "ttHto2B_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2022EE/ttHto2B_M-125_TuneCP5_13p6TeV_powheg-pythia8",
             },
             "Hcc": {
-                "GluGluHto2C_M-125":  "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/GluGluHto2C_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
+                "GluGluHto2C_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/GluGluHto2C_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
                 "GluGluHto2C_PT-200_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/GluGluHto2C_PT-200_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
                 "VBFHto2C_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/VBFHto2C_M-125_TuneCP5_13p6TeV_powheg-pythia8",
                 "WminusH_Hto2C_Wto2Q_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/WminusH_Hto2C_Wto2Q_M-125_TuneCP5_13p6TeV_powheg-pythia8",
@@ -259,7 +254,7 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "WZto4Q-1Jets-4FS": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2022EE/WZto4Q-1Jets-4FS_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 # missing ZZto4Q
             },
-            "VJets_had_NLO": {}, #Need to run crab VJetsNLO
+            "VJets_had_NLO": {},  # Need to run crab VJetsNLO
             "VJets_lep_NLO": {
                 # "WtoLNu-2Jets_0J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "WtoLNu-2Jets_1J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
@@ -404,7 +399,7 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "ttHto2B_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2023/ttHto2B_M-125_TuneCP5_13p6TeV_powheg-pythia8",
             },
             "Hcc": {
-                "GluGluHto2C_M-125":  "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/GluGluHto2C_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
+                "GluGluHto2C_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/GluGluHto2C_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
                 "GluGluHto2C_PT-200_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/GluGluHto2C_PT-200_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
                 "VBFHto2C_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/VBFHto2C_M-125_TuneCP5_13p6TeV_powheg-pythia8",
                 "WminusH_Hto2C_Wto2Q_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/WminusH_Hto2C_Wto2Q_M-125_TuneCP5_13p6TeV_powheg-pythia8",
@@ -455,8 +450,8 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 # "WWto4Q_1Jets-4FS": "/store/group/lpcpfnano/PFNano_Run3/25v2/", Not in PFNano
                 "WZto4Q-1Jets-4FS": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2023/WZto4Q-1Jets-4FS_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
             },
-            "VJets_had_NLO": {}, #Need to run crab VJetsNLO
-            "VJets_lep_NLO": { #Need to run crab VJetsNLO
+            "VJets_had_NLO": {},  # Need to run crab VJetsNLO
+            "VJets_lep_NLO": {  # Need to run crab VJetsNLO
                 # "WtoLNu-2Jets_0J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "WtoLNu-2Jets_1J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "WtoLNu-2Jets_2J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
@@ -569,7 +564,7 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "ttHto2B_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2023BPix/ttHto2B_M-125_TuneCP5_13p6TeV_powheg-pythia8",
             },
             "Hcc": {
-                "GluGluHto2C_M-125":  "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/GluGluHto2C_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
+                "GluGluHto2C_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/GluGluHto2C_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
                 "GluGluHto2C_PT-200_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/GluGluHto2C_PT-200_M-125_TuneCP5_13p6TeV_powheg-minlo-pythia8",
                 "VBFHto2C_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/VBFHto2C_M-125_TuneCP5_13p6TeV_powheg-pythia8",
                 "WminusH_Hto2C_Wto2Q_M-125": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/WminusH_Hto2C_Wto2Q_M-125_TuneCP5_13p6TeV_powheg-pythia8",
@@ -620,8 +615,8 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 # "WWto4Q_1Jets-4FS": "/store/group/lpcpfnano/PFNano_Run3/25v2/", Not in PFNano
                 "WZto4Q-1Jets-4FS": "/store/group/lpcpfnano/PFNano_Run3/25v2/sixie/mc_2023BPix/WZto4Q-1Jets-4FS_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
             },
-            "VJets_had_NLO": {}, #Need to run crab VJetsNLO
-            "VJets_lep_NLO": { #Need to run crab VJetsNLO
+            "VJets_had_NLO": {},  # Need to run crab VJetsNLO
+            "VJets_lep_NLO": {  # Need to run crab VJetsNLO
                 # "WtoLNu-2Jets_0J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "WtoLNu-2Jets_1J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "WtoLNu-2Jets_2J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
