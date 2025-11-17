@@ -11,7 +11,6 @@ import uproot
 
 from hbb import utils
 
-
 def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
 
     h = hist.Hist(hist.axis.Regular(obs_cfg["nbins"], obs_cfg["min"], obs_cfg["max"], name=obs_cfg["name"], label=obs_cfg["name"]))
@@ -29,9 +28,9 @@ def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
         bin_br = data[str_bin_br]
         obs_br = data[obs_cfg["branch_name"]]
 
-        Txbb = data["FatJet0_pnetTXbb"]
-        Txcc = data["FatJet0_pnetTXcc"]
-        Txbbxcc = data["FatJet0_pnetXbbXcc"]
+        Txbb = data["FatJet0_ParTPXbbVsQCD"]
+        Txcc = data["FatJet0_ParTPXccVsQCD"]
+        Txbbxcc = data["FatJet0_ParTPXbbXcc"]
         genf = data["GenFlavor"]
 
         pre_selection = (obs_br > obs_cfg["min"]) & (obs_br < obs_cfg["max"])
@@ -45,6 +44,20 @@ def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
 
         cut_bb = (genf == 3)
         cut_qq = (genf > 0) & (genf < 3)
+        cut_c = (genf == 2)
+        cut_light = (genf > 0) & (genf < 2)
+
+        def fill_h(name, sel):
+            h.view()[:] = 0
+            h.fill(
+                obs_br[sel],
+                weight=weight_val[sel],
+            )
+            if not name in outdict:
+                outdict[name] = h.copy()
+            else:
+                outdict[name] += h.copy()
+            return
 
         for i in range(len(bins_list) - 1):
             bin_cut = (bin_br > bins_list[i]) & (bin_br < bins_list[i+1]) & pre_selection
@@ -52,38 +65,22 @@ def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
             for category, selection in selection_dict.items():
                 if qq_true:
                     name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}_{s}"
-                    h.view()[:] = 0
-                    h.fill(
-                        obs_br[selection & bin_cut & cut_qq],
-                        weight=weight_val[selection & bin_cut & cut_qq],
-                    )
-                    if not name in outdict:
-                        outdict[name] = h.copy()
-                    else:
-                        outdict[name] += h.copy()
+                    fill_h(name, (selection & bin_cut & cut_qq))
 
                     name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}bb_{s}"
-                    h.view()[:] = 0
-                    h.fill(
-                        obs_br[selection & bin_cut & cut_bb],
-                        weight=weight_val[selection & bin_cut & cut_bb],
-                    )
-                    if not name in outdict:
-                        outdict[name] = h.copy()
-                    else:
-                        outdict[name] += h.copy()
+                    fill_h(name, (selection & bin_cut & cut_bb))
+
+                    name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}c_{s}"
+                    fill_h(name, (selection & bin_cut & cut_c))
+
+                    name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}light_{s}"
+                    fill_h(name, (selection & bin_cut & cut_light))
+
                 else:
 
                     name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}_{s}"
-                    h.view()[:] = 0
-                    h.fill(
-                        obs_br[selection & bin_cut],
-                        weight=weight_val[selection & bin_cut],
-                    )
-                    if not name in outdict:
-                        outdict[name] = h.copy()
-                    else:
-                        outdict[name] += h.copy()
+                    fill_h(name, (selection & bin_cut))
+
     return outdict
 
 def main(args):
@@ -98,9 +95,9 @@ def main(args):
         "weight",
         "FatJet0_pt",
         "FatJet0_msd",
-        "FatJet0_pnetTXbb",
-        "FatJet0_pnetTXcc",
-        "FatJet0_pnetXbbXcc",
+        "FatJet0_ParTPXbbVsQCD",
+        "FatJet0_ParTPXccVsQCD",
+        "FatJet0_ParTPXbbXcc",
         "VBFPair_mjj",
         "GenFlavor",
     ]
