@@ -453,7 +453,7 @@ class categorizer(SkimmerABC):
                 "Photon0_pt": leadingphoton.pt,
                 "Photon0_phi": leadingphoton.phi,
                 "Photon0_eta": leadingphoton.eta,
-                "MET": met,
+                "MET": met.pt,
                 "weight": nominal_weight,
                 "genWeight": gen_weight,
                 **gen_variables,
