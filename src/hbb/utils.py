@@ -183,8 +183,14 @@ def load_samples(
                 sum_genweights = get_sum_genweights(data_dir, dataset)
                 print(f"Using sum_genweights for {dataset}: {sum_genweights}")
 
-                events["weight_nonorm"] = events["weight"]
-                events["finalWeight"] = events["weight"] / sum_genweights
+                # --- MEMORY FIX ---
+                # The line 'events["weight_nonorm"] = events["weight"]' is removed as it's not used.
+
+                # We perform the division in-place (no new memory)
+                # and then rename the column.
+                events["weight"] /= sum_genweights
+                events = events.rename(columns={"weight": "finalWeight"})
+                # --- END FIX ---
             else:
                 # For data, we just keep the weight as is
                 # events["weight_nonorm"] = events["weight"]

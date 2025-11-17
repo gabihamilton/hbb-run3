@@ -25,6 +25,7 @@ mass_lo = 115
 mass_hi = 135
 
 categories = [
+    "inclusive",
     "bb_pass",
     "bb_fail",
     "cc_pass",
@@ -36,6 +37,7 @@ categories = [
 
 # --- NEW: Dictionary to map category names to descriptive labels ---
 category_labels = {
+    "inclusive": "Pre-selection",
     "bb_pass": "TXbb > 0.95",
     "bb_fail": "TXbb < 0.95",
     "cc_pass": "TXcc > 0.95",
@@ -47,8 +49,6 @@ category_labels = {
 
 
 # --- Function 1: Plotting Stacked by Process ---
-# --- MODIFIED ---
-# Added `variable` as an argument
 def plot_by_process(
     hists, category, year_str, year_list, outdir, region, style, variable, ptinclusive=False
 ):
@@ -68,9 +68,6 @@ def plot_by_process(
         print("--- Preparing plots for each pT bin ---")
 
     for pt_low, pt_high in pt_bins:
-        # for i in range(len(pt_axis.edges) - 1):
-        # pt_low, pt_high = pt_axis.edges[i], pt_axis.edges[i+1]
-        # i_start = pt_axis.index(pt_low)
         print(f"  Processing pt bin: {pt_low} - {pt_high}")
 
         histograms_to_plot = {}
@@ -78,8 +75,6 @@ def plot_by_process(
             if h.sum() == 0 or category not in h.axes["category"]:
                 continue
 
-            # --- MODIFIED ---
-            # Changed hard-coded "msd1" to the dynamic `variable` argument
             h_proj = h[:, hist.loc(pt_low) : hist.loc(pt_high), category, :].project(variable)
 
             # --- MODIFIED ---
@@ -92,9 +87,6 @@ def plot_by_process(
                 h_proj.values()[:] = data_val
             histograms_to_plot[process] = h_proj
 
-        # Conditional title and filename
-        # --- MODIFIED ---
-        # Added `variable` to the output filename
         if ptinclusive:
             legend_title = f"{category.capitalize()} Region, $p_T$-inclusive"
             output_name = (
@@ -143,7 +135,6 @@ def plot_by_process(
             bkg_order = ["zjets", "wjets", "other", "top"]
             onto = "qcd"
 
-        # legend_title = f"{category.capitalize()} Region, {pt_low:g} < $p_T$ < {pt_high:g} GeV"
         # --- UPDATED LEGEND TITLE ---
         label = category_labels.get(category, category.replace("_", " ").title())
         legend_title = f"{label} Region, {pt_low:g} < $p_T$ < {pt_high:g} GeV"
@@ -158,9 +149,6 @@ def plot_by_process(
             legend_title=legend_title,
         )
         # --- MODIFIED ---
-        # We assume ratio_plot is smart enough to use the axis label from the histogram
-        # If not, we would need to pass `xlabel=first_hist.axes[0].label` to ratio_plot
-        # For now, no change to the call is needed.
 
         luminosity = sum(LUMI[y] / 1000.0 for y in year_list)
         hep.cms.label(
@@ -273,8 +261,6 @@ def plot_by_flavor(hists, category, year_str, year_list, outdir, region, style, 
 
 
 # --- Function 3: QCD Pass/Fail Shape Comparison ---
-# --- MODIFIED ---
-# Added `variable` as an argument
 def plot_qcd_shapes(hists, year_str, outdir, region, norm_type, variable):
     """For each pt bin, plots the normalized 'pass' and 'fail' distributions for the QCD sample."""
     if "qcd" not in hists or hists["qcd"].sum() == 0:
@@ -386,30 +372,22 @@ def plot_inclusive(
     hists, year_str, year_list, outdir, region, style, inclusive_scope, stack_by, variable
 ):
 
-    # Now that we have more categories beyond pass and fail, we need to sum the right categories
-    pass_cat = "bb_pass"
-    fail_cat = "bb_fail"
-    print(f"  Creating inclusive plot from '{pass_cat}' + '{fail_cat}' categories.")
+    inclusive_cat = "inclusive"
+    print(f"  Creating inclusive plot from '{inclusive_cat}' category.")
 
-    """Plots inclusive histograms summed over pass and fail categories."""
+    """Plots inclusive histograms from the pre-calculated 'inclusive' category."""
     hists_incl = {}
     for process, h in hists.items():
-        if h.sum() > 0 and pass_cat in h.axes["category"] and fail_cat in h.axes["category"]:
-            # Project to 4D (variable, pt, cat, flavor), select pass/fail, then sum over cat
-            hists_incl[process] = h[..., [hist.loc(pass_cat), hist.loc(fail_cat)], :][
-                ..., hist.sum, :
-            ]
+        if h.sum() > 0 and inclusive_cat in h.axes["category"]:
+            # Project to 4D (variable, pt, cat, flavor), select the 'inclusive' cat
+            # The result is a 3D hist (variable, pt, flavor)
+            hists_incl[process] = h[..., hist.loc(inclusive_cat), :]
 
     if not hists_incl:
         print(
-            "No histograms with the required pass/fail categories were found. No inclusive plots to make."
+            f"No histograms with the required '{inclusive_cat}' category were found. No inclusive plots to make."
         )
         return
-
-    # hists_incl = {p: h[:, :, hist.sum, :] for p, h in hists.items() if h.sum() > 0}
-    # if not hists_incl:
-    #    print("All histograms are empty. No inclusive plots to make.")
-    #    return
 
     first_hist = next(iter(hists_incl.values()))
     pt_axis = first_hist.axes["pt1"]
@@ -422,17 +400,15 @@ def plot_inclusive(
         for i in range(len(pt_axis.edges) - 1):
             pt_low, pt_high = pt_axis.edges[i], pt_axis.edges[i + 1]
             # Slicing for this specific pt bin
-            # --- MODIFIED ---
-            # Changed hard-coded "msd1" to the dynamic `variable` argument
+            title_label = category_labels.get("inclusive", "Inclusive")
+
             h_slice = {
                 p: h[:, pt_axis.index(pt_low), :].project(variable) for p, h in hists_incl.items()
             }
             plot_configs.append(
                 {
                     "hists": h_slice,
-                    "title": f"Inclusive (Pass+Fail), {pt_low:g} < $p_T$ < {pt_high:g} GeV",
-                    # --- MODIFIED ---
-                    # Added `variable` to the output filename
+                    "title": f"{title_label}, {pt_low:g} < $p_T$ < {pt_high:g} GeV",
                     "filename": f"{outdir}/{year_str}_{region}_inclusive_{variable}_{stack_by}_ptbin{pt_low}_{pt_high}.png",
                     "pt_slice": i,  # Store index for flavor splitting
                 }
@@ -440,13 +416,12 @@ def plot_inclusive(
 
     # Logic for fully inclusive plot
     if inclusive_scope in ["pt-inclusive", "all"]:
-        # --- MODIFIED ---
-        # Changed hard-coded "msd1" to the dynamic `variable` argument
+        title_label = category_labels.get("inclusive", "Inclusive")
         h_slice = {p: h[:, hist.sum, :].project(variable) for p, h in hists_incl.items()}
         plot_configs.append(
             {
                 "hists": h_slice,
-                "title": "Inclusive (Pass+Fail, all $p_T$)",
+                "title": f"{title_label} (all $p_T$)",
                 # --- MODIFIED ---
                 # Added `variable` to the output filename
                 "filename": f"{outdir}/{year_str}_{region}_inclusive_{variable}_{stack_by}_allpt.png",
@@ -725,7 +700,7 @@ def main(args):
                 args.outdir,
                 args.region,
                 style,
-                args.variable,  # <-- ADDED
+                args.variable,
             )
     elif args.plot_type == "qcd_shape":
         print(f"Plotting {args.variable} QCD pass/fail shapes for year: {year_str}...")
@@ -735,7 +710,7 @@ def main(args):
             args.outdir,
             args.region,
             args.norm_type,
-            args.variable,  # <-- ADDED
+            args.variable,
         )
     elif args.plot_type == "inclusive":
         print(f"Plotting {args.variable} inclusive (pass+fail) histograms for year: {year_str}...")
@@ -780,8 +755,6 @@ if __name__ == "__main__":
     parser.add_argument("--indir", help="Input directory for .pkl files", type=str, required=True)
     parser.add_argument("--outdir", help="Output directory for plots", type=str, required=True)
     parser.add_argument("--region", help="Analysis region", type=str, required=True)
-    # --- MODIFIED ---
-    # Added the new --variable argument
     parser.add_argument(
         "--variable",
         help="Variable to plot",

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import pickle
 from pathlib import Path
 
@@ -27,7 +28,7 @@ axis_to_histaxis = {
     "category": hist.axis.StrCategory([], name="category", label="Category", growth=True),
     "genflavor": hist.axis.IntCategory([0, 1, 2, 3], name="genflavor", label="Gen Flavor"),
     "met": hist.axis.Regular(50, 0, 300, name="met", label="MET [GeV]"),
-    "photon_pt": hist.axis.Regular(50, 0, 500, name="photon_pt", label=r"Photon $p_{T}$ [GeV]"),
+    "photon_pt": hist.axis.Regular(50, 0, 1200, name="photon_pt", label=r"Photon $p_{T}$ [GeV]"),
     "delta_phi": hist.axis.Regular(
         32, 0, 3.2, name="delta_phi", label=r"$\Delta\phi(\gamma, \text{jet})$"
     ),
@@ -55,45 +56,83 @@ def fill_ptbinned_histogram(h, events, axis, region):
     """
     for _process_name, data in events.items():
 
-        if "Photon0_phi" in data.columns and "FatJet0_phi" in data.columns:
-            dphi = np.abs(data["Photon0_phi"] - data["FatJet0_phi"])
-            # Wrap values > pi
-            dphi = np.where(dphi > np.pi, 2 * np.pi - dphi, dphi)
-            data["delta_phi_photon_jet"] = dphi  # Add as a new column to the dataframe
+        # --- 1. EXTRACT ALL COLUMNS WE NEED ---
+        # Handle dphi calculation FIRST, only if we need it
+        if axis == "delta_phi":
+            if "Photon0_phi" in data.columns and "FatJet0_phi" in data.columns:
+                dphi = np.abs(data["Photon0_phi"] - data["FatJet0_phi"])
+                # Wrap values > pi
+                dphi = np.where(dphi > np.pi, 2 * np.pi - dphi, dphi)
+                delta_phi_photon_jet = dphi
+            else:
+                print("WARNING: Missing dphi columns, filling with NaN.")
+                delta_phi_photon_jet = np.nan
         else:
-            # Add a placeholder if columns don't exist to avoid a KeyError later
-            # This is useful if running over regions without photons
-            data["delta_phi_photon_jet"] = np.nan
+            delta_phi_photon_jet = np.nan  # Define as NaN for other axes
+
+        # Now, get the main variable series
+        if axis_to_column[axis] == "delta_phi_photon_jet":
+            var_series = delta_phi_photon_jet
+        else:
+            var_series = data[axis_to_column[axis]]  # Get MET, msd, etc.
 
         weight_val = data["finalWeight"].astype(float)
-        var = data[axis_to_column[axis]]
 
         isRealData = "GenFlavor" not in data.columns
         genflavordata = (
             data["GenFlavor"].astype(np.int8)
             if not isRealData
-            else np.zeros_like(var, dtype=np.int8)
+            else np.zeros_like(var_series, dtype=np.int8)
         )
 
         # 1. Implement trigger OR for the control-zgamma region
         trigger_mask = True  # Default to pass for all other regions
         if region == "control-zgamma":
-            if "Photon200" in data.columns and "Photon110EB_TightID_TightIso" in data.columns:
-                trigger_mask = data["Photon200"] | data["Photon110EB_TightID_TightIso"]
+            # --- FIX ---
+            # Use the columns we dynamically loaded
+            if "Photon200" in data.columns:  # and "Photon110EB_TightID_TightIso" in data.columns:
+                trigger_mask = (
+                    data["Photon200"] | data["Photon110EB_TightID_TightIso"]
+                )  # | data["Photon30EB_TightID_TightIso"]
             else:
                 print(
                     "WARNING: Trigger columns not found for zgamma region. No trigger selection applied."
                 )
 
-        # Event selection
+        # Event selection columns
         Txcc = data["FatJet0_pnetTXcc"]
         Txbb = data["FatJet0_pnetTXbb"]
         msd = data["FatJet0_msd"]
         pt = data["FatJet0_pt"]
-        print("pt min:", np.min(pt), " pt max:", np.max(pt))
-        pre_selection = (msd > 20) & (msd < 200) & (pt > 200) & (pt < 1200) & (trigger_mask)
+        photon_pt = data["Photon0_pt"] if "Photon0_pt" in data.columns else None
+
+        # --- 2. DELETE THE ORIGINAL DATAFRAME ---
+        # We have extracted all columns, so we can free this memory
+        del data
+        gc.collect()
+
+        # --- 3. NOW, SAFELY TRANSFORM THE 'var' SERIES ---
+        if axis == "met" and var_series.dtype == "object":
+            print("Detected 'object' type for MET column. Attempting to extract 'pt' from dicts...")
+            try:
+                # This should now have enough memory to succeed
+                var_series = var_series.apply(lambda d: d["pt"])
+                print("Successfully extracted MET 'pt'.")
+            except Exception as e:
+                print(
+                    f"ERROR: Failed to extract 'pt' from MET column. First element is: {var_series.iloc[0]}"
+                )
+                print(f"Error was: {e}")
+                raise
+
+        # --- 4. CONTINUE WITH THE REST OF THE LOGIC ---
+        # print("pt min:", np.min(pt), " pt max:", np.max(pt))
+        pre_selection = (
+            (photon_pt > 120) & (msd > 20) & (msd < 200) & (pt > 200) & (pt < 1200) & (trigger_mask)
+        )
 
         selection_dict = {
+            "inclusive": pre_selection,
             "bb_pass": pre_selection & (Txbb > 0.95),
             "bb_fail": pre_selection & (Txbb < 0.95),
             "cc_pass": pre_selection & (Txcc > 0.95),
@@ -106,7 +145,7 @@ def fill_ptbinned_histogram(h, events, axis, region):
         # Fill histograms
         for category, selection in selection_dict.items():
             h.fill(
-                var[selection],
+                var_series[selection],  # Use the (potentially transformed) var_series
                 pt[selection],
                 category=category,
                 genflavor=genflavordata[selection],
@@ -121,37 +160,43 @@ def main(args):
 
     MAIN_DIR = "/eos/uscms/store/group/lpchbbrun3/"
     # dir_name = "gmachado/25Oct27_v12"
-    dir_name = "gmachado/25Nov9_v14_private"
+    dir_name = "gmachado/25Nov11_v14_private"
     path_to_dir = f"{MAIN_DIR}/{dir_name}/"
 
-    load_columns_mc = [
-        "weight",
-        "FatJet0_pt",
-        "FatJet0_msd",
-        "FatJet0_pnetTXbb",
-        "FatJet0_pnetTXcc",
-        "GenFlavor",
-        "Photon200",
-        "Photon110EB_TightID_TightIso",
-        "MET",
-        "Photon0_pt",
-        "Photon0_phi",
-        "FatJet0_phi",
-    ]
-    load_columns_data = [
-        "weight",
-        "FatJet0_pt",
-        "FatJet0_msd",
-        "FatJet0_pnetTXbb",
-        "FatJet0_pnetTXcc",
-        "Photon200",
-        "Photon110EB_TightID_TightIso",
-        "MET",
-        "Photon0_pt",
-        "Photon0_phi",
-        "FatJet0_phi",
-    ]
     filters = None
+    variable_to_plot = args.variable
+
+    # 1. Define base columns ALWAYS needed for selections
+    base_columns = [
+        "weight",
+        "FatJet0_pt",
+        "FatJet0_msd",
+        "FatJet0_pnetTXbb",
+        "FatJet0_pnetTXcc",
+    ]
+
+    # 2. Add columns needed for the region
+    if region == "control-zgamma":
+        # You only check for Photon200 in your trigger logic
+        base_columns.extend(
+            ["Photon200"]
+        )  # , "Photon110EB_TightID_TightIso"])#, "Photon30EB_TightID_TightIso"])
+
+    # 3. Add columns needed for the specific variable
+    # (This uses your existing axis_to_column map)
+    var_cols = axis_to_column[variable_to_plot]
+    if isinstance(var_cols, str):
+        # Handle 'delta_phi_photon_jet' which is not a real column
+        if var_cols == "delta_phi_photon_jet":
+            base_columns.extend(["Photon0_phi", "FatJet0_phi"])
+        else:
+            base_columns.append(var_cols)
+    elif isinstance(var_cols, list):
+        base_columns.extend(var_cols)
+
+    # 4. Create the final lists
+    load_columns_mc = list(set(base_columns + ["GenFlavor"]))
+    load_columns_data = list(set(base_columns))  # 'set' avoids duplicates
 
     data_dir = Path(path_to_dir) / year
 
@@ -173,9 +218,8 @@ def main(args):
     # Define which histograms to create based on the region
     # For zgamma, we add the new ones. For other regions, we just make the msd1 plot.
     # Define which histograms to create based on the region
-    hists_to_make = ["msd1"]
-    if region == "control-zgamma":
-        hists_to_make.extend(["met", "photon_pt", "delta_phi"])
+    variable_to_plot = args.variable
+    hists_to_make = [variable_to_plot]
 
     print(f"Will create histogram files for: {', '.join(hists_to_make)}")
 
@@ -194,7 +238,7 @@ def main(args):
 
             # Create a new histogram for each process
             h = hist.Hist(
-                axis_to_histaxis["msd1"],
+                axis_to_histaxis[hist_name],
                 axis_to_histaxis["pt1"],
                 axis_to_histaxis["category"],
                 axis_to_histaxis["genflavor"],
@@ -221,6 +265,10 @@ def main(args):
                 # Fill the histogram with the events from this single dataset
                 h = fill_ptbinned_histogram(h, events, hist_name, region)
 
+                # --- ADD THESE TWO LINES ---
+                del events  # Explicitly delete the large dataframe
+                gc.collect()
+                # --- END OF FIX ---
             # --- ADDED CHECK ---
             # Only add the histogram to our dictionary if it has entries
             if h.sum() == 0:
@@ -267,6 +315,13 @@ if __name__ == "__main__":
             "control-tt",
             "control-zgamma",
         ],
+    )
+    parser.add_argument(
+        "--variable",
+        help="The variable to plot.",
+        type=str,
+        required=True,
+        choices=["msd1", "met", "photon_pt", "delta_phi", "mass1"],
     )
     parser.add_argument(
         "--outdir", help="Output directory to save histograms.", type=str, default="histograms"
