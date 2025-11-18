@@ -179,7 +179,7 @@ def main(args):
     if region == "control-zgamma":
         # You only check for Photon200 in your trigger logic
         base_columns.extend(
-            ["Photon200", "Photon110EB_TightID_TightIso"]
+            ["Photon0_pt", "Photon200", "Photon110EB_TightID_TightIso"]
         )  # , "Photon30EB_TightID_TightIso"])
 
     # 3. Add columns needed for the specific variable
