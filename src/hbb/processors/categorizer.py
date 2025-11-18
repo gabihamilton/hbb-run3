@@ -10,11 +10,26 @@ import dask_awkward as dak
 import numpy as np
 from coffea.analysis_tools import PackedSelection, Weights
 from hist.dask import Hist
+import dask
+
+from hbb.jerc_eras import run_map, jerc_variations
+from hbb.taggers import b_taggers
 
 from hbb.corrections import (
     add_pileup_weight,
+    add_ps_weight,
+    add_scalevar_3pt,
+    add_scalevar_7pt,
+    add_pdf_weight,
     get_jetveto_event,
     lumiMasks,
+    correct_met,
+    apply_jerc,
+    add_btag_weights,
+    add_muon_weights,
+    add_photon_weights,
+    correct_muons,
+    mupt_variations
 )
 from hbb.processors.SkimmerABC import SkimmerABC
 
@@ -60,11 +75,12 @@ class categorizer(SkimmerABC):
     def __init__(
         self,
         year="2022",
-        nano_version="v12",
+        nano_version="v12",\
         xsecs: dict = None,
         systematics=False,
         save_skim=False,
         skim_outpath="",
+        btag_eff=False
     ):
         super().__init__()
 
@@ -75,6 +91,10 @@ class categorizer(SkimmerABC):
         self._systematics = systematics
         self._save_skim = save_skim
         self._skim_outpath = skim_outpath
+        self._btag_eff = btag_eff
+        self._btagger, self._btag_wp = "btagPNetB", "M"
+        self._btag_cut = b_taggers[self._year]["AK4"][self._btagger][self._btag_wp]
+        self._mupt_type = "ptcorr"
 
         with Path("src/hbb/muon_triggers.json").open() as f:
             self._muontriggers = json.load(f)
@@ -89,9 +109,6 @@ class categorizer(SkimmerABC):
         with Path("src/hbb/metfilters.json").open() as f:
             self._met_filters = json.load(f)
 
-        with Path("src/hbb/taggers.json").open() as f:
-            self._b_taggers = json.load(f)
-
         self.make_output = lambda: {
             "sumw": {},
             "cutflow": Hist.new.StrCat([], growth=True, name="region", label="Region")
@@ -103,24 +120,67 @@ class categorizer(SkimmerABC):
             "skim": {},
         }
 
+        #btag efficiency plots - binning according to:
+        #https://btv-wiki.docs.cern.ch/PerformanceCalibration/fixedWPSFRecommendations/#b-tagging-efficiencies-in-simulation
+        self.make_btag_output = lambda: (
+            Hist.new.StrCat([], growth=True, name="tagger", label="Tagger")
+            .Reg(2, 0, 2, name="passWP", label="passWP")
+            .Variable([0, 4, 5], name="flavor", label="Jet hadronFlavour")
+            .Variable([20, 30, 50, 70, 100, 140, 200, 300, 600, 1000], name="pt", label="Jet pt")
+            .Reg(4, 0, 2.5, name="abseta", label="Jet abseta").Weight()
+        )
+
     def process(self, events):
-        # fatjets = events.FatJet
-        # jets = events.Jet
-        # met = events.MET
-        # shifts = [({"Jet": jets, "FatJet": fatjets, "MET": met}, None)]
-        # TODO return processor.accumulate(self.process_shift(update(events, collections), name) for collections, name in shifts)
-        return self.process_shift(events, None)
+
+        #process only nominal case
+        if not self._save_skim:
+            return {"nominal": self.process_shift(events, "nominal")}
+
+        """
+        Add `Up and Down` to total list of energy variations 
+        Muon Energy: `MuonPTScale and MuonPTResolution` defined in mupt_variations
+        Jet Energy: `JES, JER, UES` defined in jerc_variations
+        """
+        total_variations = ["nominal"] + \
+            [f"{var}_{dir}" for var in jerc_variations for dir in ["Up", "Down"]] + \
+            [f"{var}_{dir}" for var in mupt_variations for dir in ["Up", "Down"]]
+
+        """
+        run processor for each shift defined in total_variations
+        return output as dict {variation: output}
+        """
+        return {var: self.process_shift(events, var) for var in total_variations}
+        
+    
 
     def add_weights(
         self,
         weights,
         events,
         dataset,
+        btag_jets,
+        muons = None,
+        photons = None
     ) -> tuple[dict, dict]:
         """Adds weights and variations, saves totals for all norm preserving weights and variations"""
         weights.add("genweight", events.genWeight)
 
         add_pileup_weight(weights, self._year, events.Pileup.nPU)
+        add_ps_weight(weights, events.PSWeight)
+        btag_SF = 1.
+        if not self._btag_eff:
+            btag_SF = add_btag_weights(weights, btag_jets, self._btagger, self._btag_wp, self._year, dataset)
+
+        #Easier to save nominal weights for rest of MC with all of the syst names for grabbing columns in post-processing
+        flag_syst = ("Hto2B" in dataset) or ("Hto2C" in dataset) or ("VBFZto" in dataset)
+        add_pdf_weight(weights, getattr(events, "LHEPdfWeight", None) if flag_syst else None)
+        add_scalevar_7pt(weights, getattr(events, "LHEScaleWeight", None) if flag_syst else None)
+        add_scalevar_3pt(weights, getattr(events, "LHEScaleWeight", None) if flag_syst else None)
+
+        if muons is not None:
+            add_muon_weights(weights, self._year, muons, self._mupt_type)
+        if photons is not None:
+            add_photon_weights(weights, self._year, photons)
 
         logger.debug("weights", extra=weights._weights.keys())
         # logger.debug(f"Weight statistics: {weights.weightStatistics!r}")
@@ -148,16 +208,18 @@ class categorizer(SkimmerABC):
         # save the unnormalized weight, to confirm that it's been normalized in post-processing
         weights_dict["weight_noxsec"] = weights.weight()
 
-        return weights_dict, totals_dict
+        return weights_dict, totals_dict, btag_SF
 
     def process_shift(self, events, shift_name):
 
         dataset = events.metadata["dataset"]
         isRealData = not hasattr(events, "genWeight")
         selection = PackedSelection()
-        output = self.make_output()
+        output = self.make_output() if not self._btag_eff else self.make_btag_output()
         weights = Weights(None, storeIndividual=True)
-        if shift_name is None and not isRealData:
+        weights_mu = Weights(None, storeIndividual=True)
+        weights_gamma = Weights(None, storeIndividual=True)
+        if shift_name == "nominal" and not isRealData and not self._btag_eff:
             output["sumw"][dataset] = ak.sum(events.genWeight)
 
         trigger = ak.values_astype(ak.zeros_like(events.run), bool)
@@ -193,9 +255,45 @@ class categorizer(SkimmerABC):
         selection.add("metfilter", metfilter)
         del metfilter
 
-        fatjets = set_ak8jets(events.FatJet, self._year, self._nano_version)
+        mc_run = "mc"
+        if isRealData:
+            for keys, value in run_map.items():
+                if any(k in dataset for k in keys):
+                    mc_run = value
+                    break
+        jec_key = f"{self._year}_{mc_run}"
+
+        fatjets = set_ak8jets(events.FatJet, self._year, self._nano_version, events.Rho.fixedGridRhoFastjetAll)
+        jets = set_ak4jets(events.Jet, self._year, self._nano_version, events.Rho.fixedGridRhoFastjetAll)
+
+        if self._nano_version == "v14_private":
+            #subjets in PFNano reprocessing break the fatjet jercs for whatever reason
+            keep_fields = [f for f in fatjets.fields if (('nConstituents' not in f) and ("IdxG" not in f) and ("Idx1G" not in f) and ("Idx2G" not in f))]
+
+            fatjets= ak.zip(
+                {f: fatjets[f] for f in keep_fields },
+                with_name="FatJet",
+                behavior=fatjets.behavior
+            )
+        
+        #Apply jerc corrections to jets, fatjets, and met collections
+        jets = apply_jerc(jets, "AK4", self._year, jec_key)
+        fatjets = apply_jerc(fatjets, "AK8", self._year, jec_key)
+        met = correct_met(events.PuppiMET, jets)  # PuppiMET Recommended for Run3
+
+        #Select jets, fatjets, and met collections according to jerc variation shift
+        if not shift_name == "nominal" and not "Muon" in shift_name:
+            var, direction = shift_name.split("_")
+            attr = jerc_variations[var]
+
+            if var in ("JES", "JER"):
+                jets  = getattr(getattr(jets, attr), direction.lower())
+                fatjets  = getattr(getattr(fatjets, attr), direction.lower())
+                met  = getattr(getattr(met, attr), direction.lower())
+            elif var == "UES":
+                met  = getattr(getattr(met, attr), direction.lower())
+
         goodfatjets = good_ak8jets(fatjets)
-        jets = set_ak4jets(events.Jet, self._year, self._nano_version)
         goodjets = good_ak4jets(jets)
 
         cut_jetveto = get_jetveto_event(jets, self._year)
@@ -242,21 +340,19 @@ class categorizer(SkimmerABC):
             ak4_outside_ak8[ak.argmin(ak4_outside_ak8.delta_r(candidatejet), axis=1, keepdims=True)]
         )
 
-        btag_cut = self._b_taggers[self._year]["AK4"]["Jet_btagPNetB"]["M"]
         selection.add(
             "antiak4btagMediumOppHem",
-            ak.max(ak4_opphem_ak8.btagPNetB, axis=1, mask_identity=False) < btag_cut,
+            ak.max(getattr(ak4_opphem_ak8, self._btagger), axis=1, mask_identity=False) < self._btag_cut,
         )
         selection.add(
             "antiak4btagMedium",
-            ak.max(ak4_outside_ak8.btagPNetB, axis=1, mask_identity=False) < btag_cut,
+            ak.max(getattr(ak4_outside_ak8, self._btagger), axis=1, mask_identity=False) < self._btag_cut,
         )
         selection.add(
             "ak4btagMedium08",
-            ak.max(ak4_outside_ak8.btagPNetB, axis=1, mask_identity=False) > btag_cut,
+            ak.max(getattr(ak4_outside_ak8, self._btagger), axis=1, mask_identity=False) > self._btag_cut,
         )
 
-        met = events.PuppiMET  # PuppiMET Recommended for Run3
         selection.add("lowmet", met.pt < 140.0)
 
         # VBF specific variables
@@ -277,38 +373,65 @@ class categorizer(SkimmerABC):
         selection.add("isvbf", isvbf)
         selection.add("notvbf", isnotvbf)
 
-        goodmuon = good_muons(events.Muon)
+        muons = correct_muons(events.Muon, events, self._year, isRealData)
+        if not shift_name == "nominal" and "Muon" in shift_name:
+            var, direction = shift_name.split("_")
+            self._mupt_type = f"{mupt_variations[var]}_{direction.lower()}"
+
+        goodmuon = good_muons(muons, self._mupt_type)
         nmuons = ak.num(goodmuon, axis=1)
         leadingmuon = ak.firsts(goodmuon)
+        ttbarmuon = ak.firsts(goodmuon[getattr(goodmuon, self._mupt_type) > 55.])
+            #low pt muons break sf (lower bound 15GeV)
 
         goodelectron = good_electrons(events.Electron)
         nelectrons = ak.num(goodelectron, axis=1)
 
         selection.add("noleptons", (nmuons == 0) & (nelectrons == 0))
         selection.add("onemuon", (nmuons == 1) & (nelectrons == 0))
-        selection.add("muonkin", (leadingmuon.pt > 55.0) & (abs(leadingmuon.eta) < 2.1))
+        selection.add("muonkin", (getattr(leadingmuon, self._mupt_type) > 55.0) & (abs(leadingmuon.eta) < 2.1))
         selection.add("muonDphiAK8", abs(leadingmuon.delta_phi(candidatejet)) > 2 * np.pi / 3)
 
         goodphotons = good_photons(events.Photon)
         nphotons = ak.num(goodphotons, axis=1)
-        tightphotons = tight_photons(events.Photon)
-        ntightphotons = ak.num(tightphotons, axis=1)
-        leadingphoton = ak.firsts(tightphotons)
+        leadingphoton = ak.firsts(goodphotons)
+        ntightphotons = ak.num(tight_photons(events.Photon), axis=1)
+        vgammaphoton = ak.firsts(tight_photons(events.Photon))
 
         selection.add("onephoton", (nphotons == 1))
         selection.add("atleastonephoton", (ntightphotons >= 1))
         selection.add("passphotonveto", (nphotons == 0))
 
         gen_variables = {}
+        btag_SF = 1.
         if isRealData:
             genflavor = ak.zeros_like(candidatejet.pt)
             genBosonPt = ak.zeros_like(candidatejet.pt)
         else:
-            weights_dict, totals_temp = self.add_weights(
+            #signal regions
+            weights_dict, totals_temp, btag_SF = self.add_weights( 
                 weights,
                 events,
                 dataset,
+                ak4_opphem_ak8 
             )
+            #muon region
+            weights_dict_mu, totals_temp_mu, btag_SF_mu = self.add_weights( 
+                weights_mu,
+                events,
+                dataset,
+                ak4_outside_ak8,
+                muons = ttbarmuon
+            )
+            #gamma region
+            weights_dict_gamma, totals_temp_gamma, btag_SF_gamma = self.add_weights( 
+                weights_gamma,
+                events,
+                dataset,
+                ak4_outside_ak8,
+                photons = vgammaphoton
+            )
+
             for d, gen_func in gen_selection_dict.items():
                 if d in dataset:
                     # match goodfatjets
@@ -393,20 +516,17 @@ class categorizer(SkimmerABC):
             ],
         }
 
-        def normalize(val, cut):
-            if cut is None:
-                ar = ak.fill_none(val, np.nan)
-                return ar
-            else:
-                ar = ak.fill_none(val[cut], np.nan)
-                return ar
+        btag_eff_cuts = [
+                "trigger",
+                "lumimask",
+                "metfilter",
+                "ak4jetveto",
+                "minjetkin",
+                "lowmet",
+                "noleptons"
+        ]
 
         tic = time.time()
-
-        if shift_name is None:
-            systematics = [None] + list(weights.variations)
-        else:
-            systematics = [shift_name]
 
         nominal_weight = ak.ones_like(events.run) if isRealData else weights_dict["weight"]
         gen_weight = ak.ones_like(events.run) if isRealData else events.genWeight
@@ -418,9 +538,22 @@ class categorizer(SkimmerABC):
             else:
                 egamma_trigger_booleans[t] = ak.values_astype(ak.zeros_like(events.run), bool)
 
+        if self._btag_eff:
+            cut = selection.all(*btag_eff_cuts)
+            flat_gj = ak.flatten(goodjets)
+
+            output.fill(
+                tagger=self._btagger,
+                abseta=self.normalize(abs(flat_gj.eta), cut),
+                pt=self.normalize(flat_gj.pt, cut),
+                flavor=self.normalize(flat_gj.hadronFlavour, cut),
+                passWP=self.normalize(getattr(flat_gj, self._btagger) > self._btag_cut, cut),
+            )
+            return output
+
         output_array = None
         if self._save_skim:
-            # define "flat" output array
+
             output_array = {
                 "GenBoson_pt": genBosonPt,
                 "GenFlavor": genflavor,
@@ -451,14 +584,29 @@ class categorizer(SkimmerABC):
                 "FatJet1_pnetTXgg": subleadingjet.particleNet_XggVsQCD,
                 "VBFPair_mjj": vbf_mjj,
                 "VBFPair_deta": vbf_deta,
-                "Photon0_pt": leadingphoton.pt,
-                "Photon0_phi": leadingphoton.phi,
-                "Photon0_eta": leadingphoton.eta,
+                "Photon0_pt": vgammaphoton.pt,
+                "Photon0_phi": vgammaphoton.phi,
+                "Photon0_eta": vgammaphoton.eta,
                 "MET": met.pt,
                 "weight": nominal_weight,
                 "genWeight": gen_weight,
                 **gen_variables,
                 **egamma_trigger_booleans,
+            }
+
+            #reduced output array for energy variation shift
+            energy_var_array = {
+                "GenBoson_pt": genBosonPt,
+                "GenFlavor": genflavor,
+                "FatJet0_pt": candidatejet.pt,
+                "FatJet0_msd": candidatejet.msd,
+                "FatJet0_msdmatched": msd_matched,
+                "FatJet0_pnetTXbb": candidatejet.particleNet_XbbVsQCD,
+                "FatJet0_pnetTXcc": candidatejet.particleNet_XccVsQCD,
+                "FatJet0_pnetXbbXcc": candidatejet.pnetXbbXcc,
+                "VBFPair_mjj": vbf_mjj,
+                "weight": nominal_weight,
+                "genWeight": gen_weight,
             }
 
             if "v12" not in self._nano_version:
@@ -485,6 +633,14 @@ class categorizer(SkimmerABC):
                     "FatJet1_ParTmassX2p": candidatejet.ParTmassX2p,
                 }
                 output_array = {**output_array, **parT_array}
+
+                energy_var_array_parT = {
+                    "FatJet0_ParTPXbbVsQCD": candidatejet.ParTPXbbVsQCD,
+                    "FatJet0_ParTPXccVsQCD": candidatejet.ParTPXccVsQCD,
+                    "FatJet0_ParTPXbbXcc": candidatejet.ParTPXbbXcc,
+                }
+                energy_var_array = {**energy_var_array, **energy_var_array_parT}
+
 
             # extra variables for big array
             output_array_extra = {
@@ -537,49 +693,79 @@ class categorizer(SkimmerABC):
             # print(output_array[cut].compute())
 
             if "root:" in self._skim_outpath:
-                skim_path = f"{self._skim_outpath}/{self._year}/{dataset}/parquet/{region}"
+                skim_path = f"{self._skim_outpath}/{shift_name.replace('_', '')}/{self._year}/{dataset}/{region}"
             else:
-                skim_path = Path(self._skim_outpath) / self._year / dataset / "parquet" / region
+                skim_path = Path(self._skim_outpath) / shift_name.replace('_', '') / self._year / dataset /  region
                 skim_path.mkdir(parents=True, exist_ok=True)
             print("Saving skim to: ", skim_path)
 
-            # possible TODO: add systematic weights?
             output["skim"][region] = dak.to_parquet(
                 output_array[cut],
                 str(skim_path),
                 compute=False,
             )
 
-            allcuts = set()
-            cut = selection.all(*allcuts)
-            output["cutflow"].fill(
-                dataset=dataset,
-                region=region,
-                genflavor=normalize(genflavor, None),
-                cut=0,
-                weight=nominal_weight,
-            )
-            for i, cut in enumerate(selections):
-                allcuts.add(cut)
-                cut = selection.all(*allcuts)  # noqa: PLW2901
+            if shift_name == "nominal":
+
+                #Fill cutflow hist
+                allcuts = set()
+                cut = selection.all(*allcuts)
                 output["cutflow"].fill(
                     dataset=dataset,
                     region=region,
-                    genflavor=normalize(genflavor, cut),
-                    cut=i + 1,
-                    weight=nominal_weight[cut],
+                    genflavor=self.normalize(genflavor, None),
+                    cut=0,
+                    weight=nominal_weight,
+                )
+                for i, cut in enumerate(selections):
+                    allcuts.add(cut)
+                    cut = selection.all(*allcuts)
+                    output["cutflow"].fill(
+                        dataset=dataset,
+                        region=region,
+                        genflavor=self.normalize(genflavor, cut),
+                        cut=i + 1,
+                        weight=nominal_weight[cut],
+                    )
+
+                #Fill btag SF hist
+                cut = selection.all(*selections)
+                output["btagWeight"].fill(
+                    val=self.normalize(btag_SF, cut)
                 )
 
-        for region in regions:
-            if self._save_skim:
-                print(region)
-                if region == "signal-all":
-                    skim(region, ak.zip({**output_array, **output_array_extra}, depth_limit=1))
-                else:
-                    skim(region, ak.zip(output_array, depth_limit=1))
-            for systematic in systematics:
-                if isRealData and systematic is not None:
-                    continue
+        if self._save_skim:
+            if shift_name == "nominal":
+                for region in regions:
+                    if region == "signal-all":
+                        skim(region, ak.zip({**output_array, **output_array_extra}, depth_limit=1))
+                    else:
+                        if isRealData:
+                            skim(region, ak.zip(output_array, depth_limit=1))
+                        else:
+                            if "signal" in region:
+                                skim(region, ak.zip({**output_array, **weights_dict}, depth_limit=1))
+                            elif region == "control-tt":
+                                output_array["weight"] = ak.ones_like(events.run) if isRealData else weights_dict_mu["weight"]
+                                skim(region, ak.zip({**output_array, **weights_dict_mu}, depth_limit=1))
+                            elif region == "control-zgamma":
+                                output_array["weight"] = ak.ones_like(events.run) if isRealData else weights_dict_gamma["weight"]
+                                skim(region, ak.zip({**output_array, **weights_dict_gamma}, depth_limit=1))
+                                
+            else:   #energy variation shift case
+                for region in regions:
+                    if region != "signal-all":
+                        if isRealData:
+                            skim(region, ak.zip(energy_var_array, depth_limit=1))
+                        else:
+                            if "signal" in region:
+                                skim(region, ak.zip({**energy_var_array, **weights_dict}, depth_limit=1))
+                            elif region == "control-tt":
+                                output_array["weight"] = ak.ones_like(events.run) if isRealData else weights_dict_mu["weight"]
+                                skim(region, ak.zip({**energy_var_array, **weights_dict_mu}, depth_limit=1))
+                            elif region == "control-zgamma":
+                                output_array["weight"] = ak.ones_like(events.run) if isRealData else weights_dict_gamma["weight"]
+                                skim(region, ak.zip({**energy_var_array, **weights_dict_gamma}, depth_limit=1))
 
         toc = time.time()
         output["filltime"] = toc - tic

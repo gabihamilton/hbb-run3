@@ -45,9 +45,9 @@ def tight_photons(photons: PhotonArray):
     return photons[sel]
 
 
-def good_muons(muons: MuonArray):
+def good_muons(muons: MuonArray, pt_type):
     sel = (
-        (muons.pt > 10)
+        (getattr(muons, pt_type) > 10)
         & (np.abs(muons.eta) < 2.4)
         & (muons.looseId)
         & (muons.pfRelIso04_all < 0.15)
@@ -77,7 +77,7 @@ def good_electrons(electrons: ElectronArray):
     return electrons[sel]
 
 
-def set_ak4jets(jets: JetArray, year: str, nano_version: str):
+def set_ak4jets(jets: JetArray, year: str, nano_version: str, event_rho):
     """
     Jet ID fix for NanoAOD v12 copying
     # https://gitlab.cern.ch/cms-jetmet/coordination/coordination/-/issues/117#note_8880716
@@ -107,6 +107,12 @@ def set_ak4jets(jets: JetArray, year: str, nano_version: str):
 
     # TODO: Add PNet pt regression
 
+    #jerc variables
+    jets["pt_raw"] = (1 - jets.rawFactor) * jets.pt
+    jets["mass_raw"] = (1 - jets.rawFactor) * jets.mass
+    jets["pt_gen"] = ak.values_astype(ak.fill_none(jets.matched_gen.pt, 0), np.float32)
+    jets["event_rho"] = ak.broadcast_arrays(event_rho, jets.pt)[0]
+
     return jets
 
 
@@ -127,7 +133,7 @@ def good_ak4jets(jets: JetArray):
     return jets[sel]
 
 
-def set_ak8jets(fatjets: FatJetArray, year: str, nano_version: str):
+def set_ak8jets(fatjets: FatJetArray, year: str, nano_version: str, event_rho):
 
     if "v12" in nano_version:
         fatjets["jetidtight"] = fatjets.isTight
@@ -151,9 +157,13 @@ def set_ak8jets(fatjets: FatJetArray, year: str, nano_version: str):
     fatjets["msd"] = fatjets.msoftdrop
     fatjets["qcdrho"] = 2 * np.log(fatjets.msd / fatjets.pt)
     fatjets["pnetmass"] = fatjets.particleNet_massCorr * fatjets.mass
-    fatjets["pnetXbbXcc"] = (fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD) / (
-        fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD + fatjets.particleNet_QCD
-    )
+    fatjets["pnetXbbXcc"] = (fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD) / (fatjets.particleNet_XbbVsQCD + fatjets.particleNet_XccVsQCD + fatjets.particleNet_QCD)
+
+    #jerc variables
+    fatjets["pt_raw"] = (1 - fatjets.rawFactor) * fatjets.pt
+    fatjets["mass_raw"] = (1 - fatjets.rawFactor) * fatjets.mass
+    fatjets["pt_gen"] = ak.values_astype(ak.fill_none(fatjets.matched_gen.pt, 0), np.float32)
+    fatjets["event_rho"] = ak.broadcast_arrays(event_rho, fatjets.pt)[0]
 
     return fatjets
 
