@@ -90,7 +90,7 @@ def fill_ptbinned_histogram(h, events, axis, region):
         if region == "control-zgamma":
             # --- FIX ---
             # Use the columns we dynamically loaded
-            if "Photon200" in data.columns:  # and "Photon110EB_TightID_TightIso" in data.columns:
+            if "Photon200" in data.columns and "Photon110EB_TightID_TightIso" in data.columns:
                 trigger_mask = (
                     data["Photon200"] | data["Photon110EB_TightID_TightIso"]
                 )  # | data["Photon30EB_TightID_TightIso"]
@@ -128,7 +128,7 @@ def fill_ptbinned_histogram(h, events, axis, region):
         # --- 4. CONTINUE WITH THE REST OF THE LOGIC ---
         # print("pt min:", np.min(pt), " pt max:", np.max(pt))
         pre_selection = (
-            (photon_pt > 120) & (msd > 20) & (msd < 200) & (pt > 200) & (pt < 1200) & (trigger_mask)
+            (photon_pt > 120) & (msd > 20) & (msd < 200) & (pt > 250) & (pt < 1200) & (trigger_mask)
         )
 
         selection_dict = {
@@ -179,8 +179,8 @@ def main(args):
     if region == "control-zgamma":
         # You only check for Photon200 in your trigger logic
         base_columns.extend(
-            ["Photon200"]
-        )  # , "Photon110EB_TightID_TightIso"])#, "Photon30EB_TightID_TightIso"])
+            ["Photon200", "Photon110EB_TightID_TightIso"]
+        )  # , "Photon30EB_TightID_TightIso"])
 
     # 3. Add columns needed for the specific variable
     # (This uses your existing axis_to_column map)
