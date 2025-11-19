@@ -81,7 +81,7 @@ class categorizer(SkimmerABC):
         save_skim=False,
         skim_outpath="",
         btag_eff=False,
-        save_skim_nosyst=False,
+        save_skim_nosysts=False,
     ):
         super().__init__()
 
