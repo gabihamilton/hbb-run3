@@ -90,7 +90,7 @@ class categorizer(SkimmerABC):
         self._year = year
         self._nano_version = nano_version
         self._systematics = systematics
-        self._skip_syst = save_skim_nosyst
+        self._skip_syst = save_skim_nosysts
         self._save_skim = save_skim
         if self._skip_syst: self._save_skim = True
         self._skim_outpath = skim_outpath
