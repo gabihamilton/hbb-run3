@@ -116,7 +116,7 @@ def run(year: str, fileset: dict, args: argparse.Namespace):
     # otherwise it will complain about too many small files
     # This is the CORRECTED version of the file-combining block for run.py
 
-    if args.save_skim or args.save_skim_nosyst:
+    if args.save_skim or args.save_skim_nosysts:
         import pandas as pd
         import pyarrow as pa
         import pyarrow.parquet as pq
