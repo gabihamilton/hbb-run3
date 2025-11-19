@@ -115,7 +115,7 @@ def run(year: str, fileset: dict, args: argparse.Namespace):
     # otherwise it will complain about too many small files
     # This is the CORRECTED version of the file-combining block for run.py
 
-    if args.save_skim:
+    if args.save_skim or args.save_skim_nosyst:
         import pandas as pd
         import pyarrow as pa
         import pyarrow.parquet as pq
@@ -245,6 +245,12 @@ if __name__ == "__main__":
         "--btag-eff",
         action="store_true",
         help="compute b-tag efficiencies for mc",
+        default=False,
+    )
+    group.add_argument(
+        "--save-skim-nosyst",
+        action="store_true",
+        help="save skimmed files, skip systematics",
         default=False,
     )
 
