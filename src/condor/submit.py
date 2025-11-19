@@ -162,7 +162,7 @@ def parse_args(parser):
         default="save-skim",
         help="skimmer run mode",
         type=str,
-        choices=["save-skim", "btag-eff"],
+        choices=["save-skim", "btag-eff", "save-skim-nosysts"],
     )
 
 
