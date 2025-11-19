@@ -90,7 +90,8 @@ def run(year: str, fileset: dict, args: argparse.Namespace):
         nano_version=args.nano_version,
         save_skim=args.save_skim,
         skim_outpath="outparquet",
-        btag_eff=args.btag_eff
+        btag_eff=args.btag_eff,
+        save_skim_nosysts=args.save_skim_nosysts
     )
 
     full_tg, rep = apply_to_fileset(
@@ -248,7 +249,7 @@ if __name__ == "__main__":
         default=False,
     )
     group.add_argument(
-        "--save-skim-nosyst",
+        "--save-skim-nosysts",
         action="store_true",
         help="save skimmed files, skip systematics",
         default=False,
