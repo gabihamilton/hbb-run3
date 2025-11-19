@@ -279,12 +279,12 @@ class categorizer(SkimmerABC):
                 with_name="FatJet",
                 behavior=fatjets.behavior
             )
-        
+        met = events.PuppiMET
         #Apply jerc corrections to jets, fatjets, and met collections
         if not self._skip_syst:
             jets = apply_jerc(jets, "AK4", self._year, jec_key)
             fatjets = apply_jerc(fatjets, "AK8", self._year, jec_key)
-            met = correct_met(events.PuppiMET, jets)  # PuppiMET Recommended for Run3
+            met = correct_met(met, jets)  # PuppiMET Recommended for Run3
 
         #Select jets, fatjets, and met collections according to jerc variation shift
         if not shift_name == "nominal" and not "Muon" in shift_name:
