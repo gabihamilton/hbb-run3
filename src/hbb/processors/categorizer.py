@@ -80,7 +80,8 @@ class categorizer(SkimmerABC):
         systematics=False,
         save_skim=False,
         skim_outpath="",
-        btag_eff=False
+        btag_eff=False,
+        save_skim_nosyst=False,
     ):
         super().__init__()
 
@@ -89,7 +90,9 @@ class categorizer(SkimmerABC):
         self._year = year
         self._nano_version = nano_version
         self._systematics = systematics
+        self._skip_syst = skip_syst
         self._save_skim = save_skim
+        if self._skip_syst: self._save_skim = True
         self._skim_outpath = skim_outpath
         self._btag_eff = btag_eff
         self._btagger, self._btag_wp = "btagPNetB", "M"
@@ -133,7 +136,7 @@ class categorizer(SkimmerABC):
     def process(self, events):
 
         #process only nominal case
-        if not self._save_skim:
+        if self._skip_syst or not self._save_skim:
             return {"nominal": self.process_shift(events, "nominal")}
 
         """
@@ -165,22 +168,23 @@ class categorizer(SkimmerABC):
         """Adds weights and variations, saves totals for all norm preserving weights and variations"""
         weights.add("genweight", events.genWeight)
 
-        add_pileup_weight(weights, self._year, events.Pileup.nPU)
-        add_ps_weight(weights, events.PSWeight)
-        btag_SF = 1.
-        if not self._btag_eff:
-            btag_SF = add_btag_weights(weights, btag_jets, self._btagger, self._btag_wp, self._year, dataset)
+        if not self._skip_syst:
+            add_pileup_weight(weights, self._year, events.Pileup.nPU)
+            add_ps_weight(weights, events.PSWeight)
+            btag_SF = 1.
+            if not self._btag_eff:
+                btag_SF = add_btag_weights(weights, btag_jets, self._btagger, self._btag_wp, self._year, dataset)
 
-        #Easier to save nominal weights for rest of MC with all of the syst names for grabbing columns in post-processing
-        flag_syst = ("Hto2B" in dataset) or ("Hto2C" in dataset) or ("VBFZto" in dataset)
-        add_pdf_weight(weights, getattr(events, "LHEPdfWeight", None) if flag_syst else None)
-        add_scalevar_7pt(weights, getattr(events, "LHEScaleWeight", None) if flag_syst else None)
-        add_scalevar_3pt(weights, getattr(events, "LHEScaleWeight", None) if flag_syst else None)
+            #Easier to save nominal weights for rest of MC with all of the syst names for grabbing columns in post-processing
+            flag_syst = ("Hto2B" in dataset) or ("Hto2C" in dataset) or ("VBFZto" in dataset)
+            add_pdf_weight(weights, getattr(events, "LHEPdfWeight", None) if flag_syst else None)
+            add_scalevar_7pt(weights, getattr(events, "LHEScaleWeight", None) if flag_syst else None)
+            add_scalevar_3pt(weights, getattr(events, "LHEScaleWeight", None) if flag_syst else None)
 
-        if muons is not None:
-            add_muon_weights(weights, self._year, muons, self._mupt_type)
-        if photons is not None:
-            add_photon_weights(weights, self._year, photons)
+            if muons is not None:
+                add_muon_weights(weights, self._year, muons, self._mupt_type)
+            if photons is not None:
+                add_photon_weights(weights, self._year, photons)
 
         logger.debug("weights", extra=weights._weights.keys())
         # logger.debug(f"Weight statistics: {weights.weightStatistics!r}")
@@ -277,9 +281,10 @@ class categorizer(SkimmerABC):
             )
         
         #Apply jerc corrections to jets, fatjets, and met collections
-        jets = apply_jerc(jets, "AK4", self._year, jec_key)
-        fatjets = apply_jerc(fatjets, "AK8", self._year, jec_key)
-        met = correct_met(events.PuppiMET, jets)  # PuppiMET Recommended for Run3
+        if not self._skip_syst:
+            jets = apply_jerc(jets, "AK4", self._year, jec_key)
+            fatjets = apply_jerc(fatjets, "AK8", self._year, jec_key)
+            met = correct_met(events.PuppiMET, jets)  # PuppiMET Recommended for Run3
 
         #Select jets, fatjets, and met collections according to jerc variation shift
         if not shift_name == "nominal" and not "Muon" in shift_name:
