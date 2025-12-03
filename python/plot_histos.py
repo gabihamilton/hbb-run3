@@ -100,8 +100,8 @@ def plot_by_process(
 
         # Region-specific plotting logic
         if "control-zgamma" in region:
-            signals = []
-            bkg_order = ["wgamma", "zgamma", "other", "tt"]
+            signals = ["zgamma"]
+            bkg_order = ["tt", "other", "wgamma"]
             onto = "gjets"
             # --- UPDATED: Print a summary yield table ---
             print("\n--- Yield Table for this Bin ---")
