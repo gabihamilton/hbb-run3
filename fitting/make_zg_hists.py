@@ -41,20 +41,49 @@ def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
         Txcc = data["FatJet0_pnetTXcc"]
         Txbbxcc = data["FatJet0_pnetXbbXcc"]
 
+        # --- NEW TRIGGER LOGIC START ---
+        # 1. Define the trigger mask
+        # We assume MC passes (trigger_mask = True)
+        trigger_mask = True
+
+        # 2. Check if we are running on Data (no GenFlavor) AND if columns exist
+        is_data = "GenFlavor" not in data.columns
+        has_trigger_cols = ("Photon200" in data.columns) and (
+            "Photon110EB_TightID_TightIso" in data.columns
+        )
+
+        if is_data and has_trigger_cols:
+            # Implement the OR logic from your script
+            trigger_mask = data["Photon200"] | data["Photon110EB_TightID_TightIso"]
+        elif is_data and not has_trigger_cols:
+            print(
+                f"WARNING: Trigger columns missing for data process {_process_name}! No trigger applied."
+            )
+        # -------------------------------
+
+        # --- Updated Pre-Selection ---
+        pre_selection = (
+            (obs_br > obs_cfg["min"])
+            & (obs_br < obs_cfg["max"])
+            & trigger_mask  # <--- The mask is applied here
+        )
+
         # --- FIX 1: Safety check to prevent crashing on Data/QCD ---
         genf = data["GenFlavor"] if "GenFlavor" in data.columns else 0
 
         pre_selection = (obs_br > obs_cfg["min"]) & (obs_br < obs_cfg["max"])
+        WP = 0.85
 
         selection_dict = {
-            "pass_bb": pre_selection & (Txbbxcc > 0.95) & (Txbb > Txcc),
-            "pass_cc": pre_selection & (Txbbxcc > 0.95) & (Txcc > Txbb),
-            "fail": pre_selection & (Txbbxcc <= 0.95),
-            "pass": pre_selection & (Txbbxcc > 0.95),
+            "pass_bb": pre_selection & (Txbbxcc > WP) & (Txbb > Txcc),
+            "pass_cc": pre_selection & (Txbbxcc > WP) & (Txcc > Txbb),
+            "fail": pre_selection & (Txbbxcc <= WP),
+            "pass": pre_selection & (Txbbxcc > WP),
         }
 
         cut_bb = genf == 3
-        cut_qq = (genf > 0) & (genf < 3)
+        # cut_qq = (genf > 0) & (genf < 3)
+        cut_qq = genf != 3
 
         for i in range(len(bins_list) - 1):
             bin_cut = (bin_br > bins_list[i]) & (bin_br < bins_list[i + 1]) & pre_selection
@@ -106,7 +135,7 @@ def main(args):
 
     # --- FIX 3: Hardcoded Z-Gamma Sample List ---
     # We include TTGamma and Zgamma here so they get split into bb/light
-    samples_qq = ["Wjets", "Zjets", "EWKW", "EWKZ", "EWKV", "Zgamma", "TTGamma"]
+    samples_qq = ["Wjets", "Zjets", "Zgamma", "TTGamma"]
 
     columns = [
         "weight",
@@ -117,6 +146,8 @@ def main(args):
         "FatJet0_pnetXbbXcc",
         "VBFPair_mjj",
         "GenFlavor",
+        "Photon200",  # <--- Add triggers
+        "Photon110EB_TightID_TightIso",
     ]
 
     data_dirs = [Path(path_to_dir) / year]
@@ -159,9 +190,6 @@ def main(args):
             for reg, cfg in cats.items():
                 for data_dir in data_dirs:
 
-                    # --- FIX 6: The Flat Directory Hack ---
-                    # We pass variation="." so it finds .../parquet/control-zgamma
-                    # instead of looking for .../parquet/nominal/control-zgamma
                     events = utils.load_samples(
                         data_dir,
                         {process: [dataset]},

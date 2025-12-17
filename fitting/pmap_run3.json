@@ -37,6 +37,13 @@
         "EGamma_Run2023Cv4",
         "EGamma_Run2023D"
     ],
+    "GJets": [
+        "GJ_PTG-100to200",
+        "GJ_PTG-200to400",
+        "GJ_PTG-400to600",
+        "GJ_PTG-600",
+        "GJ_PTG-20to100"
+    ],
     "ggF": [
         "GluGluHto2B_M-125",
         "GluGluHto2B_PT-200_M-125",

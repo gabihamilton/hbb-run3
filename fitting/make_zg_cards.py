@@ -7,8 +7,7 @@ import warnings
 from pathlib import Path
 
 import numpy as np
-
-# import pandas as pd  <-- Remove this if you aren't using dataframes
+import pandas as pd
 import rhalphalib as rl
 import ROOT
 
@@ -24,10 +23,98 @@ eps = 0.001
 
 ### DIFF: Disabled systematics and Muon CR for the initial Z-Gamma validation fit.
 ### Original had these set to True.
-do_systematics = False
+do_systematics = True
 do_muon_CR = False
 
 lumi_err = {"2022": 1.01, "2023": 1.02}
+
+
+def plot_mctf(tf_MCtempl, msdbins, name, year, tag):
+    """
+    Plot the MC pass / fail TF as function of (pt,rho) and (pt,msd)
+    """
+    import matplotlib.pyplot as plt
+
+    # Create directory using Pathlib
+    outdir = Path(f"results/{tag}/{year}/plots/MCTF/")
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    # --- ADAPTATION: Z-Gamma Low pT Range (200 - 1200) ---
+    pts = np.linspace(200, 1200, 15)
+    ptpts, msdpts = np.meshgrid(
+        pts[:-1] + 0.5 * np.diff(pts), msdbins[:-1] + 0.5 * np.diff(msdbins), indexing="ij"
+    )
+
+    # Scaling must match the fit logic!
+    ptpts_scaled = (ptpts - 200.0) / (1200.0 - 200.0)
+    rhopts = 2 * np.log(msdpts / ptpts)
+
+    rhopts_scaled = (rhopts - (-6)) / ((-2.1) - (-6))
+
+    # Valid Region Mask
+    validbins = (rhopts_scaled >= 0) & (rhopts_scaled <= 1)
+
+    ptpts = ptpts[validbins].copy()
+    msdpts = msdpts[validbins].copy()
+    ptpts_scaled = ptpts_scaled[validbins].copy()
+    rhopts_scaled = rhopts_scaled[validbins].copy()
+
+    # Evaluate the Polynomial
+    tf_MCtempl_vals = tf_MCtempl(ptpts_scaled, rhopts_scaled, nominal=True)
+
+    df = pd.DataFrame([])  # noqa: PD901
+    df["msd"] = msdpts.reshape(-1)
+    df["pt"] = ptpts.reshape(-1)
+    df["MCTF"] = tf_MCtempl_vals.reshape(-1)
+
+    # Plot 1: pT vs Mass
+    fig, ax = plt.subplots()
+    h = ax.hist2d(x=df["msd"], y=df["pt"], weights=df["MCTF"], bins=(msdbins, pts))
+    plt.xlabel("$m_{sd}$ [GeV]")
+    plt.ylabel("$p_{T}$ [GeV]")
+    cb = fig.colorbar(h[3], ax=ax)
+    cb.set_label("Ratio (Pass/Fail)")
+
+    # Save Plot 1
+    outname_msd = outdir / f"MCTF_msdpt_{name}.png"
+    fig.savefig(outname_msd, bbox_inches="tight")
+    plt.close()  # Always close to save memory!
+
+    # --- Plot 2: pT vs Rho ---
+    rhos = np.linspace(-6, -2.1, 23)
+    ptpts, rhopts = np.meshgrid(
+        pts[:-1] + 0.5 * np.diff(pts), rhos[:-1] + 0.5 * np.diff(rhos), indexing="ij"
+    )
+
+    ptpts_scaled = (ptpts - 200.0) / (1200.0 - 200.0)
+    rhopts_scaled = (rhopts - (-6)) / ((-2.1) - (-6))
+    validbins = (rhopts_scaled >= 0) & (rhopts_scaled <= 1)
+
+    ptpts = ptpts[validbins].copy()
+    rhopts = rhopts[validbins].copy()
+    ptpts_scaled = ptpts_scaled[validbins].copy()
+    rhopts_scaled = rhopts_scaled[validbins].copy()
+
+    tf_MCtempl_vals = tf_MCtempl(ptpts_scaled, rhopts_scaled, nominal=True)
+
+    df = pd.DataFrame([])  # noqa: PD901
+    df["rho"] = rhopts.reshape(-1)
+    df["pt"] = ptpts.reshape(-1)
+    df["MCTF"] = tf_MCtempl_vals.reshape(-1)
+
+    fig, ax = plt.subplots()
+    h = ax.hist2d(x=df["rho"], y=df["pt"], weights=df["MCTF"], bins=(rhos, pts))
+    plt.xlabel(r"$\rho = 2\ln(m_{SD}/p_T)$")
+    plt.ylabel("$p_{T}$ [GeV]")
+    cb = fig.colorbar(h[3], ax=ax)
+    cb.set_label("Ratio (Pass/Fail)")
+
+    # Save Plot 2
+    outname_rho = outdir / f"MCTF_rhopt_{name}.png"
+    fig.savefig(outname_rho, bbox_inches="tight")
+    plt.close()
+
+    print(f"Saved MCTF debug plots to {outdir}")
 
 
 def badtemp_ma(hvalues, mask=None):
@@ -133,7 +220,7 @@ def zgamma_rhalphabet(args):
         ### DIFF: Changed pT scaling geometry.
         ### Original scaled from 450-1200 (Higgs). We scale 200-1200 (Z-Boson).
         ptscaled = (ptpts - 200.0) / (1200.0 - 200.0)
-        rhoscaled = (rhopts - (-6.0)) / ((-2.1) - (-6.0))
+        rhoscaled = (rhopts - (-6.0)) / ((-1.0) - (-6.0))
 
         validbins[cat] = (rhoscaled >= 0.0) & (rhoscaled <= 1.0)
         rhoscaled[~validbins[cat]] = 1
@@ -146,7 +233,7 @@ def zgamma_rhalphabet(args):
             fitfailed_qcd[reg] = 0
 
             # Simple retry loop
-            while fitfailed_qcd[reg] < 2:
+            while fitfailed_qcd[reg] < 5:
 
                 qcdmodel = rl.Model(f"qcdmodel_{cat}_{reg}")
                 qcdpass, qcdfail = 0.0, 0.0
@@ -161,7 +248,7 @@ def zgamma_rhalphabet(args):
                     failTempl = get_template(
                         year,
                         tag,
-                        "QCD",
+                        "GJets",
                         "fail_",
                         ptbin + 1,
                         cat,
@@ -171,7 +258,7 @@ def zgamma_rhalphabet(args):
                     passTempl = get_template(
                         year,
                         tag,
-                        "QCD",
+                        "GJets",
                         f"pass_{reg}_",
                         ptbin + 1,
                         cat,
@@ -199,8 +286,8 @@ def zgamma_rhalphabet(args):
                     with initF.open() as f:
                         initial_vals = np.array(json.load(f)["initial_vals"])
                 else:
-                    print(f"No initial vals found for {reg}, using default Order 1 poly.")
-                    initial_vals = np.array([[1.0, 1.0], [1.0, 1.0]])
+                    print(f"No initial vals found for {reg}, using default Order 2 poly.")
+                    initial_vals = np.array([[1.0, 0.1, 0.1]])
 
                 print(
                     "TFpf order "
@@ -209,6 +296,7 @@ def zgamma_rhalphabet(args):
                     + str(initial_vals.shape[1] - 1)
                     + " in rho"
                 )
+                print(initial_vals)
 
                 tf_MCtempl = rl.BasisPoly(
                     "tf_MCtempl_" + cat + reg + year,
@@ -269,6 +357,9 @@ def zgamma_rhalphabet(args):
                     ROOT.RooFit.PrintLevel(-1),
                 )
                 qcdfit_ws.add(qcdfit)
+                qcdfit_ws.writeToFile(
+                    str(datacard_dir / f"testModel_qcdfit_{cat}_{reg}_{year}.root")
+                )
 
                 # Check status
                 if qcdfit.status() != 0:
@@ -276,6 +367,7 @@ def zgamma_rhalphabet(args):
                     print(f"Fit failed for {reg}, retrying...")
                 else:
                     # Save results if successful
+                    print(f"HERE Fit successful for {reg}")
                     allparams = dict(zip(qcdfit.nameArray(), qcdfit.valueArray()))
                     pvalues = []
                     for _, p in enumerate(tf_MCtempl.parameters.reshape(-1)):
@@ -286,8 +378,12 @@ def zgamma_rhalphabet(args):
                         json.dump({"initial_vals": new_values.tolist()}, outfile)
                     break
 
-            print("Fitted QCD for category " + cat + " region " + reg)
+            print("Fitted GJets for category " + cat + " region " + reg)
 
+            # --- NEW: Call Plotting Function ---
+            plot_mctf(tf_MCtempl, msdbins, f"{cat}_{reg}", year, tag)
+            # -----------------------------------
+            # Decorrelate Parameters
             param_names = [p.name for p in tf_MCtempl.parameters.reshape(-1)]
             decoVector = rl.DecorrelatedNuisanceVector.fromRooFitResult(
                 tf_MCtempl.name + "_deco", qcdfit, param_names
@@ -302,7 +398,9 @@ def zgamma_rhalphabet(args):
                 (0, 0),
                 ["pt", "rho"],
                 basis="Bernstein",
-                init_params=np.array([[1]]),
+                init_params=np.array(
+                    [[1.0]]
+                ),  # tried changing this and it doesn't change the outcome
                 limits=(0, 20),
                 coefficient_transform=None,
             )
@@ -317,7 +415,7 @@ def zgamma_rhalphabet(args):
     ### DIFF: Changed Samples and Signal Definition.
     ### Original used ggF, VBF, WH, ZH.
     ### We use Zgammabb as Signal, and Zgamma/GJets/TTGamma as Backgrounds.
-    samps = ["Zgammabb", "Zgamma", "Wjets", "Zjets", "GJets", "TTGamma", "QCD"]
+    samps = ["Zgammabb", "Zgamma", "Wjets", "Zjets", "GJets", "TTGamma"]
     sigs = ["Zgammabb"]
 
     for cat in cats:
@@ -337,7 +435,7 @@ def zgamma_rhalphabet(args):
                 for sName in samps:
 
                     # Skip QCD in the main loop (handled via data-driven later)
-                    if sName == "QCD":
+                    if sName == "GJets":
                         continue
 
                     templ = get_template(
@@ -375,7 +473,7 @@ def zgamma_rhalphabet(args):
                 ### DIFF: Using 'Jetdata' for observation.
                 ### Z-Gamma triggers might eventually require EGamma data, but keeping Jetdata structure for now.
                 data_obs = get_template(
-                    year, tag, "Jetdata", region, ptbin + 1, cat, obs=msd, syst="nominal"
+                    year, tag, "EGammadata", region, ptbin + 1, cat, obs=msd, syst="nominal"
                 )
                 ch.setObservation(data_obs[0:3])
 
@@ -406,7 +504,7 @@ def zgamma_rhalphabet(args):
                 initial_qcd[np.where(initial_qcd < 0)] = 0
                 print("Warning: negative QCD estimate in some bins")
 
-            sigmascale = 10
+            sigmascale = 20
             scaledparams = (
                 initial_qcd * (1 + sigmascale / np.maximum(1.0, np.sqrt(initial_qcd))) ** qcdparams
             )
@@ -455,7 +553,7 @@ def zgamma_rhalphabet(args):
 
     ### DIFF: Physics Model Configuration
     ### We map the 'Zgammabb' sample to the signal strength 'r'.
-    t2w_cfg = "-P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel --PO verbose --PO 'map=.*/Zgammabb:r[1,-20,20]'"
+    t2w_cfg = "-P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel --PO verbose --PO 'map=.*/Zgammabb:r[1,-100,100]'"
 
     build_sh = modeldir / "build.sh"
     with build_sh.open("w") as f:
