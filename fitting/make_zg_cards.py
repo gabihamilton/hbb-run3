@@ -36,7 +36,7 @@ def plot_mctf(tf_MCtempl, msdbins, name, year, tag):
     import matplotlib.pyplot as plt
 
     # Create directory using Pathlib
-    outdir = Path(f"results/{tag}/{year}/plots/MCTF/")
+    outdir = Path(f"parT_results/{tag}/{year}/plots/MCTF/")
     outdir.mkdir(parents=True, exist_ok=True)
 
     # --- ADAPTATION: Z-Gamma Low pT Range (200 - 1200) ---
@@ -132,7 +132,7 @@ def get_template(year, tag, sName, region, ptbin, cat, obs, syst):
     ### Original script had complex logic for 'ggf_', 'vbf_', etc.
     ### We now use a standardized format: {cat}_{region}_pt{bin}_{process}_{syst}
 
-    f = ROOT.TFile.Open(f"results/{tag}/{year}/signalregion.root")
+    f = ROOT.TFile.Open(f"parT_results/{tag}/{year}/signalregion.root")
 
     reg_clean = region.rstrip("_")
     name = f"{cat}_{reg_clean}_pt{ptbin}_{sName}_{syst}"
@@ -229,7 +229,7 @@ def zgamma_rhalphabet(args):
         fitfailed_qcd = {}
 
         # We model pass_bb and pass_cc vs fail
-        for reg in ["bb", "cc"]:
+        for reg in ["bb"]:
             fitfailed_qcd[reg] = 0
 
             # Simple retry loop
@@ -423,7 +423,7 @@ def zgamma_rhalphabet(args):
         npt = len(ptbins) - 1
 
         for ptbin in range(npt):
-            for region in ["pass_bb_", "pass_cc_", "fail_"]:
+            for region in ["pass_bb_", "fail_"]:
 
                 ch_name = f"ptbin{ptbin}{cat}{region.replace('_', '')}{year}"
                 total_model_bins.append(ch_name)
@@ -486,7 +486,7 @@ def zgamma_rhalphabet(args):
 
             failCh = model[f"ptbin{ptbin}{cat}fail{year}"]
             passChbb = model[f"ptbin{ptbin}{cat}passbb{year}"]
-            passChcc = model[f"ptbin{ptbin}{cat}passcc{year}"]
+            # passChcc = model[f"ptbin{ptbin}{cat}passcc{year}"]
 
             qcdparams = np.array(
                 [
@@ -526,18 +526,18 @@ def zgamma_rhalphabet(args):
             )
             passChbb.addSample(pass_qcdbb)
 
-            pass_qcdcc = rl.TransferFactorSample(
-                name=f"ptbin{ptbin}{cat}passcc{year}_qcd",
-                sampletype=rl.Sample.BACKGROUND,
-                transferfactor=tf_params[cat]["cc"][ptbin, :],
-                dependentsample=fail_qcd,
-                observable=msd,
-            )
-            passChcc.addSample(pass_qcdcc)
+            # pass_qcdcc = rl.TransferFactorSample(
+            #    name=f"ptbin{ptbin}{cat}passcc{year}_qcd",
+            #    sampletype=rl.Sample.BACKGROUND,
+            #    transferfactor=tf_params[cat]["cc"][ptbin, :],
+            #    dependentsample=fail_qcd,
+            #    observable=msd,
+            # )
+            # passChcc.addSample(pass_qcdcc)
 
             mask = validbins[cat][ptbin]
             failCh.mask = mask
-            passChcc.mask = mask
+            # passChcc.mask = mask
             passChbb.mask = mask
 
     # --- SAVE OUTPUT ---
@@ -550,6 +550,9 @@ def zgamma_rhalphabet(args):
     out_cards = ""
     for card in total_model_bins:
         out_cards += f"{card}={card}.txt "
+
+        with Path(f"{modeldir}/{card}.txt").open("a") as f:
+            f.write("\nqcd_norm rateParam * qcd 1.0 [0,20]\n")
 
     ### DIFF: Physics Model Configuration
     ### We map the 'Zgammabb' sample to the signal strength 'r'.

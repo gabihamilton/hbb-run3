@@ -7,13 +7,13 @@ import os
 from pathlib import Path
 
 import hist
+import numpy as np
 import uproot
 
 from hbb import utils
 
 
 def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
-
     h = hist.Hist(
         hist.axis.Regular(
             obs_cfg["nbins"],
@@ -30,66 +30,79 @@ def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
 
     for _process_name, data in events.items():
 
-        # TODO add in systematics functionality
         weight_val = data["finalWeight"].astype(float)
         s = "nominal"
 
         bin_br = data[str_bin_br]
         obs_br = data[obs_cfg["branch_name"]]
 
-        Txbb = data["FatJet0_pnetTXbb"]
-        Txcc = data["FatJet0_pnetTXcc"]
-        Txbbxcc = data["FatJet0_pnetXbbXcc"]
+        # Extracting variables
+        Txcc = data["FatJet0_ParTPXccVsQCD"]
+        Txbb = data["FatJet0_ParTPXbbVsQCD"]
 
-        # --- NEW TRIGGER LOGIC START ---
-        # 1. Define the trigger mask
-        # We assume MC passes (trigger_mask = True)
+        msd = data["FatJet0_msd"]
+        pt = data["FatJet0_pt"]
+        photon_pt = data["Photon0_pt"]
+
+        # --- FIX: Calculate dPhi manually (handling wrapping) ---
+        dphi_raw = np.abs(data["Photon0_phi"] - data["FatJet0_phi"])
+        dphi = np.where(dphi_raw > np.pi, 2 * np.pi - dphi_raw, dphi_raw)
+
+        # --- FIX: Extract MET (Robust) ---
+        # MET is loaded as a dictionary (e.g. {'pt':.., 'phi':..}), so we extract 'pt'
+        if data["MET"].dtype == "object":
+            met_pt = data["MET"].apply(lambda x: x["pt"])
+        else:
+            met_pt = data["MET"]
+
+        # --- 1. TRIGGER LOGIC ---
         trigger_mask = True
-
-        # 2. Check if we are running on Data (no GenFlavor) AND if columns exist
         is_data = "GenFlavor" not in data.columns
         has_trigger_cols = ("Photon200" in data.columns) and (
             "Photon110EB_TightID_TightIso" in data.columns
         )
 
         if is_data and has_trigger_cols:
-            # Implement the OR logic from your script
             trigger_mask = data["Photon200"] | data["Photon110EB_TightID_TightIso"]
         elif is_data and not has_trigger_cols:
-            print(
-                f"WARNING: Trigger columns missing for data process {_process_name}! No trigger applied."
-            )
-        # -------------------------------
+            print(f"WARNING: Trigger missing for {_process_name}!")
 
-        # --- Updated Pre-Selection ---
-        pre_selection = (
-            (obs_br > obs_cfg["min"])
-            & (obs_br < obs_cfg["max"])
-            & trigger_mask  # <--- The mask is applied here
+        # --- 2. DEFINE SELECTION ---
+        # Note: Your reference script cuts pt > 250, even though plot title said 200.
+        # This matches the reference script logic.
+        basic_cuts = (
+            (photon_pt > 120) & (msd > 20) & (msd < 200) & (pt > 250) & (pt < 1200) & trigger_mask
         )
 
-        # --- FIX 1: Safety check to prevent crashing on Data/QCD ---
+        # --- FIX: Uncomment and apply topological cuts ---
+        topo_cuts = (dphi > 2.2) & (met_pt < 50)
+
+        # Combined Pre-Selection
+        pre_selection = basic_cuts & topo_cuts
+
+        # --- 3. CATEGORIZATION ---
         genf = data["GenFlavor"] if "GenFlavor" in data.columns else 0
 
-        pre_selection = (obs_br > obs_cfg["min"]) & (obs_br < obs_cfg["max"])
-        WP = 0.85
+        # --- FIX: Change WP to 0.95 to match reference ---
+        WP = 0.95
 
+        # --- FIX: Removed (Txbb > Txcc) to match strict reference reproduction ---
         selection_dict = {
-            "pass_bb": pre_selection & (Txbbxcc > WP) & (Txbb > Txcc),
-            "pass_cc": pre_selection & (Txbbxcc > WP) & (Txcc > Txbb),
-            "fail": pre_selection & (Txbbxcc <= WP),
-            "pass": pre_selection & (Txbbxcc > WP),
+            "pass_bb": pre_selection & (Txbb > WP),
+            "pass_cc": pre_selection
+            & (Txcc > WP),  # usually orthogonalized but reference didn't imply it
+            "fail": pre_selection & (Txbb <= WP),
         }
 
         cut_bb = genf == 3
-        # cut_qq = (genf > 0) & (genf < 3)
         cut_qq = genf != 3
 
         for i in range(len(bins_list) - 1):
-            bin_cut = (bin_br > bins_list[i]) & (bin_br < bins_list[i + 1]) & pre_selection
+            bin_cut = (bin_br > bins_list[i]) & (bin_br < bins_list[i + 1])
 
             for category, selection in selection_dict.items():
                 if qq_true:
+                    # Logic for splitting backgrounds into light/bb
                     name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}_{s}"
                     h.view()[:] = 0
                     h.fill(
@@ -112,13 +125,10 @@ def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
                     else:
                         outdict[name] += h.copy()
                 else:
-
+                    # Logic for Data/Signal
                     name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}_{s}"
                     h.view()[:] = 0
-                    h.fill(
-                        obs_br[selection & bin_cut],
-                        weight=weight_val[selection & bin_cut],
-                    )
+                    h.fill(obs_br[selection & bin_cut], weight=weight_val[selection & bin_cut])
                     if name not in outdict:
                         outdict[name] = h.copy()
                     else:
@@ -139,21 +149,23 @@ def main(args):
 
     columns = [
         "weight",
-        "FatJet0_pt",
-        "FatJet0_msd",
-        "FatJet0_pnetTXbb",
-        "FatJet0_pnetTXcc",
-        "FatJet0_pnetXbbXcc",
-        "VBFPair_mjj",
-        "GenFlavor",
-        "Photon200",  # <--- Add triggers
-        "Photon110EB_TightID_TightIso",
+        "FatJet0_pt",  # Kinematic cut
+        "FatJet0_msd",  # Observable/Kinematic cut
+        "FatJet0_ParTPXbbVsQCD",  # ParticleNet b-tagger
+        "FatJet0_ParTPXccVsQCD",  # ParticleNet c-tagger
+        "Photon0_pt",  # New Kinematic cut
+        "FatJet0_phi",
+        "Photon0_phi",
+        "MET",
+        "GenFlavor",  # MC Truth matching
+        "Photon200",  # Trigger OR logic
+        "Photon110EB_TightID_TightIso",  # Trigger OR logic
     ]
 
     data_dirs = [Path(path_to_dir) / year]
 
-    out_path = f"results/{tag}/{year}"
-    output_file = f"{out_path}/signalregion.root"
+    out_path = f"parT_results/{tag}/{year}"
+    output_file = f"{out_path}/testsignalregion.root"
 
     if not Path(out_path).exists():
         Path(out_path).mkdir(parents=True)
@@ -177,8 +189,6 @@ def main(args):
     filters = [
         ("FatJet0_pt", ">", 200),
         ("FatJet0_pt", "<", 2000),
-        ("VBFPair_mjj", ">", -2),
-        ("VBFPair_mjj", "<", 13000),
     ]
 
     if obs_cfg["branch_name"] not in columns:
