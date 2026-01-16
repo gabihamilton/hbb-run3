@@ -8,6 +8,7 @@ from pathlib import Path
 
 import hist
 import numpy as np
+import uproot
 from common import common_mc, data_by_year, data_by_year_muon, data_by_year_zgamma
 
 from hbb import utils
@@ -158,9 +159,64 @@ def fill_ptbinned_histogram(h, events, axis, region):
     return h
 
 
+def export_to_root(histograms, output_root_path, region, samples_qq):
+    """
+    Flattens the 4D histograms into 1D ROOT histograms matching the fitting naming convention.
+    Naming: {region}_{category}_{bin_pname}{i+1}_{process}_{syst}
+    """
+    print(f"\n--- Exporting to ROOT: {output_root_path} ---")
+
+    with uproot.recreate(output_root_path) as fout:
+        # Loop over processes (e.g., "data", "tt", "zgamma")
+        for process, h in histograms.items():
+
+            # Check if this process needs splitting by flavor (bb vs light)
+            # In your fitting script, you split: Wjets, Zjets, Zgamma, TTGamma
+            should_split_flavor = process in samples_qq
+
+            # The histogram axes are: [msd1, pt1, category, genflavor]
+            # We need to loop over pt bins and categories
+            pt_axis = h.axes["pt1"]
+            cat_axis = h.axes["category"]
+
+            for i_pt in range(len(pt_axis.edges) - 1):
+                pt_bin_name = f"ptbin{i_pt+1}"  # Matches 'bin_pname'
+
+                for category in cat_axis:
+                    # Naming base: zgamma_pass_bb_ptbin1_
+                    base_name = f"{region}_{category}_{pt_bin_name}"
+
+                    if should_split_flavor:
+                        # Slice: Bin i_pt, Category cat, Specific Flavor
+                        # Flavor map: 0=light?, 3=bb, 2=c?, 1=light?
+                        # (Adjust indices based on your GenFlavor defs. Usually 3=bb)
+
+                        # 1. BB Component
+                        h_bb = h[:, i_pt, category, 3]  # Index 3 is b-jets
+                        name_bb = f"{base_name}_{process}bb_nominal"
+                        fout[name_bb] = h_bb
+
+                        # 2. Light/Other Component (Sum of everything else)
+                        # We project the whole flavor axis and subtract bb
+                        h_all_flav = h[:, i_pt, category, sum]
+                        h_light = h_all_flav + (-1 * h_bb)
+                        name_light = f"{base_name}_{process}_nominal"  # Usually just process name implies light/qq
+                        fout[name_light] = h_light
+
+                    else:
+                        # No splitting (Data, Top, etc.)
+                        # Sum over all flavors
+                        h_1d = h[:, i_pt, category, sum]
+                        name = f"{base_name}_{process}_nominal"
+                        fout[name] = h_1d
+
+    print(f"Saved ROOT file to {output_root_path}")
+
+
 def main(args):
     year = args.year
     region = args.region
+    samples_qq = ["wjets", "zjets", "zgamma", "ttgamma"]
 
     MAIN_DIR = "/eos/uscms/store/group/lpchbbrun3/"
     # dir_name = "gmachado/25Oct27_v12"
@@ -275,12 +331,21 @@ def main(args):
 
         output_dir = Path(args.outdir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / f"histograms_{hist_name}_{year}_{region}.pkl"
+        # output_file = output_dir / f"histograms_{hist_name}_{year}_{region}.pkl"
 
-        with output_file.open("wb") as f:
+        # with output_file.open("wb") as f:
+        #    pickle.dump(histograms, f)
+
+        # 1. Save Pickle (For Plotting Pipeline)
+        pkl_file = output_dir / f"histograms_{variable_to_plot}_{year}_{region}.pkl"
+        with pkl_file.open("wb") as f:
             pickle.dump(histograms, f)
+        print(f"Pickle saved to {pkl_file}")
 
-        print(f"Histograms for {hist_name} saved to {output_file}")
+        # 2. Save ROOT (For Fitting Pipeline) - OPTIONAL
+        if args.save_root and variable_to_plot == "msd1":
+            root_file = output_dir / f"fitting_{year}_{region}.root"
+            export_to_root(histograms, root_file, region, samples_qq)
 
 
 if __name__ == "__main__":
@@ -315,6 +380,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--outdir", help="Output directory to save histograms.", type=str, default="histograms"
+    )
+    parser.add_argument(
+        "--save-root", action="store_true", help="Save 1D histograms to ROOT for Combine"
     )
     args = parser.parse_args()
 
