@@ -13,13 +13,13 @@ from common import common_mc, data_by_year, data_by_year_muon, data_by_year_zgam
 from hbb import utils
 
 # Define the possible ptbins
-ptbins = np.array([200, 500, 1200])
+ptbins = np.array([250, 500, 1200])
 
 # Define the histogram axes
 axis_to_histaxis = {
     "pt1": hist.axis.Variable(ptbins, name="pt1", label=r"Jet 0 $p_{T}$ [GeV]"),
     "pt2": hist.axis.Variable(ptbins, name="pt2", label=r"Jet 1 $p_{T}$ [GeV]"),
-    "msd1": hist.axis.Regular(23, 0, 201, name="msd1", label="Jet 0 $m_{sd}$ [GeV]"),
+    "msd1": hist.axis.Regular(23, 20, 201, name="msd1", label="Jet 0 $m_{sd}$ [GeV]"),
     "mass1": hist.axis.Regular(30, 0, 200, name="mass1", label="Jet 0 PNet mass [GeV]"),
     "category": hist.axis.StrCategory([], name="category", label="Category", growth=True),
     "genflavor": hist.axis.IntCategory([0, 1, 2, 3], name="genflavor", label="Gen Flavor"),
@@ -112,6 +112,7 @@ def fill_ptbinned_histogram(h, events, axis, region):
         # Event selection columns
         Txcc = data["FatJet0_ParTPXccVsQCD"]
         Txbb = data["FatJet0_ParTPXbbVsQCD"]
+        Txbbxcc = data["FatJet0_ParTPXbbXcc"]  # for lara's category
         msd = data["FatJet0_msd"]
         pt = data["FatJet0_pt"]
         photon_pt = data["Photon0_pt"] if "Photon0_pt" in data.columns else None
@@ -139,13 +140,10 @@ def fill_ptbinned_histogram(h, events, axis, region):
 
         selection_dict = {
             "inclusive": pre_selection,
-            "bb_pass": pre_selection & (Txbb > working_point),
-            "bb_fail": pre_selection & (Txbb < working_point),
-            "cc_pass": pre_selection & (Txcc > working_point),
-            "cc_fail": pre_selection & (Txcc < working_point),
-            "bbcc_fail": pre_selection & (Txbb < working_point) & (Txcc < working_point),
-            "bbfail_ccpass": pre_selection & (Txbb < working_point) & (Txcc > working_point),
-            "bbcc_pass": pre_selection & (Txbb > working_point) & (Txcc > working_point),
+            "pass_bb": pre_selection & (Txbbxcc > working_point) & (Txbb > Txcc),
+            "pass_cc": pre_selection & (Txbbxcc > working_point) & (Txcc > Txbb),
+            "fail": pre_selection & (Txbbxcc <= working_point),
+            "pass": pre_selection & (Txbbxcc > working_point),  # (Union of pass_bb and pass_cc)
         }
 
         # Fill histograms
@@ -183,6 +181,7 @@ def main(args):
         # "FatJet0_ParTPXcc",
         "FatJet0_ParTPXbbVsQCD",
         "FatJet0_ParTPXccVsQCD",
+        "FatJet0_ParTPXbbXcc",  # for lara's cat
     ]
 
     # 2. Add columns needed for the region

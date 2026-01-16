@@ -26,29 +26,23 @@ mass_hi = 135
 
 categories = [
     "inclusive",
-    "bb_pass",
-    "bb_fail",
-    "cc_pass",
-    "cc_fail",
-    "bbcc_fail",
-    "bbfail_ccpass",
-    "bbcc_pass",
+    "pass_bb",
+    "pass_cc",
+    "fail",
+    "pass",
 ]
 
 # --- NEW: Dictionary to map category names to descriptive labels ---
 category_labels = {
     "inclusive": "Pre-selection",
-    "bb_pass": "TXbb > 0.95",
-    "bb_fail": "TXbb < 0.95",
-    "cc_pass": "TXcc > 0.95",
-    "cc_fail": "TXcc < 0.95",
-    "bbcc_fail": "TXbb < 0.95 & TXcc < 0.95",
-    "bbfail_ccpass": "TXbb < 0.95 & TXcc > 0.95",
-    "bbcc_pass": "TXbb > 0.95 & TXcc > 0.95",
+    "pass_bb": "Xbb+Xcc > 0.95 (bb-like)",
+    "pass_cc": "Xbb+Xcc > 0.95 (cc-like)",
+    "fail": "Xbb+Xcc < 0.95 (Fail)",
+    "pass": "Xbb+Xcc > 0.95 (All Pass)",
 }
 
 
-# --- Function 1: Plotting Stacked by Process ---
+# --- Function 1: Plotting Stacked by Process (FIXED) ---
 def plot_by_process(
     hists, category, year_str, year_list, outdir, region, style, variable, ptinclusive=False
 ):
@@ -60,84 +54,80 @@ def plot_by_process(
         return
     pt_axis = first_hist.axes["pt1"]
 
+    # --- FIX 1: Define indices to loop over ---
     if ptinclusive:
-        pt_bins = [(pt_axis.edges[0], pt_axis.edges[-1])]
+        # For inclusive, we slice from 0 to the end
+        loop_indices = ["inclusive"]
         print("--- Preparing pT-inclusive plot ---")
     else:
-        pt_bins = [(pt_axis.edges[i], pt_axis.edges[i + 1]) for i in range(len(pt_axis.edges) - 1)]
+        # Loop over integer indices 0, 1, etc.
+        loop_indices = range(len(pt_axis.edges) - 1)
         print("--- Preparing plots for each pT bin ---")
 
-    for pt_low, pt_high in pt_bins:
-        print(f"  Processing pt bin: {pt_low} - {pt_high}")
+    for i in loop_indices:
+
+        # --- FIX 2: Determine slice based on index ---
+        if i == "inclusive":
+            pt_low, pt_high = pt_axis.edges[0], pt_axis.edges[-1]
+            # Slice everything (:) on axis 1
+            idx_selector = slice(None)
+        else:
+            pt_low, pt_high = pt_axis.edges[i], pt_axis.edges[i + 1]
+            # Select specifically the i-th bin
+            idx_selector = i
+
+        print(f"  Processing pt bin: {pt_low} - {pt_high} (Index {i})")
 
         histograms_to_plot = {}
+        total_yield = 0  # Debug counter
+
         for process, h in hists.items():
             if h.sum() == 0 or category not in h.axes["category"]:
                 continue
 
-            h_proj = h[:, hist.loc(pt_low) : hist.loc(pt_high), category, :].project(variable)
+            # --- FIX 3: Use integer index 'idx_selector' for robust slicing ---
+            # h is [variable, pt, category, flavor]
+            # We slice axis 1 (pt) with idx_selector
+            h_proj = h[:, idx_selector, category, :].project(variable)
 
-            # --- MODIFIED ---
-            # Added a check so we only blind data for the msd1 plot
+            # --- Blinding Data (MSD only) ---
             if process == "data" and region != "control-zgamma" and variable == "msd1":
                 edges = h_proj.axes[0].edges
                 mask = (edges[:-1] >= mass_lo) & (edges[:-1] < mass_hi)
                 data_val = h_proj.values()
                 data_val[mask] = 0
                 h_proj.values()[:] = data_val
+
             histograms_to_plot[process] = h_proj
+            total_yield += h_proj.sum()
+
+        print(f"    Total Yield in this bin: {total_yield:.2f}")
+        # ^ If this number is identical for both bins, your input pickle is wrong.
+        # If it is different, your plots are now fixed.
 
         if ptinclusive:
             legend_title = f"{category.capitalize()} Region, $p_T$-inclusive"
             output_name = (
                 f"{outdir}/{year_str}_{region}_{category}_{variable}_process_ptinclusive.png"
             )
-            print(f"  Processing pT range: {pt_low} - {pt_high} (inclusive)")
         else:
-            legend_title = f"{category.capitalize()} Region, {pt_low:g} < $p_T$ < {pt_high:g} GeV"
+            cat_label = category_labels.get(category, category)
+            legend_title = f"{cat_label}\n{pt_low:g} < $p_T$ < {pt_high:g} GeV"
             output_name = f"{outdir}/{year_str}_{region}_{category}_{variable}_process_ptbin{pt_low}_{pt_high}.png"
-            print(f"  Processing pT bin: {pt_low} - {pt_high}")
 
         # Region-specific plotting logic
         if "control-zgamma" in region:
             signals = ["zgamma"]
             bkg_order = ["tt", "other", "wgamma"]
             onto = "gjets"
-            # --- UPDATED: Print a summary yield table ---
-            print("\n--- Yield Table for this Bin ---")
-            all_mc_hists = {p: h for p, h in histograms_to_plot.items() if p != "data"}
-            total_mc_yield = sum(h.sum() for h in all_mc_hists.values())
-
-            # Sort processes by yield for the table
-            sorted_yields = sorted(
-                all_mc_hists.items(), key=lambda item: item[1].sum(), reverse=True
-            )
-
-            print(f"{'Process':<20} | {'Yield':>12} | {'Percentage':>12}")
-            print("-" * 49)
-            for process_name, h in sorted_yields:
-                yield_val = h.sum()
-                percentage = (yield_val / total_mc_yield) * 100 if total_mc_yield > 0 else 0
-                print(f"{process_name:<20} | {yield_val:>12.2f} | {percentage:>11.2f}%")
-            print("-" * 49)
-            print(f"{'Total MC':<20} | {total_mc_yield:>12.2f} | {'100.00%':>12}")
-            if "data" in histograms_to_plot:
-                print(f"{'Data':<20} | {histograms_to_plot['data'].sum():>12.0f} |")
-            print("--------------------------------\n")
-            # ---
         elif "control-tt" in region:
             signals = []
             bkg_order = ["wjets", "zjets", "qcd", "other", "hbb"]
             onto = "top"
         else:
-            # Default for signal regions
             signals = ["hbb"]
             bkg_order = ["zjets", "wjets", "other", "top"]
             onto = "qcd"
-
-        # --- UPDATED LEGEND TITLE ---
-        label = category_labels.get(category, category.replace("_", " ").title())
-        legend_title = f"{label} Region, {pt_low:g} < $p_T$ < {pt_high:g} GeV"
 
         fig, (ax, rax) = ratio_plot(
             histograms_to_plot,
@@ -148,7 +138,6 @@ def plot_by_process(
             sort_by_yield=True,
             legend_title=legend_title,
         )
-        # --- MODIFIED ---
 
         luminosity = sum(LUMI[y] / 1000.0 for y in year_list)
         hep.cms.label(
@@ -162,9 +151,6 @@ def plot_by_process(
             loc=0,
         )
 
-        # --- MODIFIED ---
-        # Added `variable` to the output filename
-        output_name = f"{outdir}/{year_str}_{region}_{category}_{variable}_process_ptbin{pt_low}_{pt_high}.png"
         fig.savefig(output_name, dpi=300, bbox_inches="tight")
         plt.close(fig)
 
