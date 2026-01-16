@@ -161,53 +161,76 @@ def fill_ptbinned_histogram(h, events, axis, region):
 
 def export_to_root(histograms, output_root_path, region, samples_qq):
     """
-    Flattens the 4D histograms into 1D ROOT histograms matching the fitting naming convention.
-    Naming: {region}_{category}_{bin_pname}{i+1}_{process}_{syst}
+    Flattens 4D histograms to 1D ROOT histograms with 'Legacy' naming conventions.
     """
     print(f"\n--- Exporting to ROOT: {output_root_path} ---")
 
+    # --- TRANSLATION MAPS (New Script -> Old Script) ---
+    # 1. Map Region Names
+    region_map = {
+        "control-zgamma": "zgcr",
+        "control-tt": "mucr",
+        "signal-all": "sr",
+        # Add others if needed
+    }
+
+    # 2. Map Process Names (lowercase -> CamelCase/Legacy)
+    process_map = {
+        "data": "data_obs",  # Standard Combine name for data
+        "tt": "ttbar",
+        "wjets": "Wjets",
+        "zjets": "Zjets",
+        "zgamma": "Zgamma",
+        "wgamma": "Wgamma",
+        "gjets": "GJets",
+        "qcd": "QCD",
+        "singletop": "singlet",
+        "diboson": "VV",
+        "ttgamma": "TTGamma",
+        "ewkv": "EWKW",  # Check if this matches your expectation
+        # Add any others that appear in your common_mc
+    }
+
+    # Get the "legacy" region name (default to original if not in map)
+    reg_name = region_map.get(region, region)
+
     with uproot.recreate(output_root_path) as fout:
-        # Loop over processes (e.g., "data", "tt", "zgamma")
         for process, h in histograms.items():
 
-            # Check if this process needs splitting by flavor (bb vs light)
-            # In your fitting script, you split: Wjets, Zjets, Zgamma, TTGamma
+            # Determine the "legacy" process name
+            # If not in map, capitalize it as a fallback
+            proc_name = process_map.get(process, process)
+
             should_split_flavor = process in samples_qq
 
-            # The histogram axes are: [msd1, pt1, category, genflavor]
-            # We need to loop over pt bins and categories
             pt_axis = h.axes["pt1"]
             cat_axis = h.axes["category"]
 
             for i_pt in range(len(pt_axis.edges) - 1):
-                pt_bin_name = f"ptbin{i_pt+1}"  # Matches 'bin_pname'
+                # FIX: Old script used 'pt1', 'pt2', not 'ptbin1'
+                pt_bin_name = f"pt{i_pt+1}"
 
                 for category in cat_axis:
-                    # Naming base: zgamma_pass_bb_ptbin1_
-                    base_name = f"{region}_{category}_{pt_bin_name}"
+                    # Naming base: zgcr_pass_bb_pt1_
+                    base_name = f"{reg_name}_{category}_{pt_bin_name}"
 
                     if should_split_flavor:
-                        # Slice: Bin i_pt, Category cat, Specific Flavor
-                        # Flavor map: 0=light?, 3=bb, 2=c?, 1=light?
-                        # (Adjust indices based on your GenFlavor defs. Usually 3=bb)
-
                         # 1. BB Component
-                        h_bb = h[:, i_pt, category, 3]  # Index 3 is b-jets
-                        name_bb = f"{base_name}_{process}bb_nominal"
+                        h_bb = h[:, i_pt, category, 3]  # 3 = bb
+                        name_bb = f"{base_name}_{proc_name}bb_nominal"
                         fout[name_bb] = h_bb
 
-                        # 2. Light/Other Component (Sum of everything else)
-                        # We project the whole flavor axis and subtract bb
+                        # 2. Light/Other Component
                         h_all_flav = h[:, i_pt, category, sum]
                         h_light = h_all_flav + (-1 * h_bb)
-                        name_light = f"{base_name}_{process}_nominal"  # Usually just process name implies light/qq
+                        # Note: Old script name for light is just the process name (e.g. Wjets_nominal)
+                        name_light = f"{base_name}_{proc_name}_nominal"
                         fout[name_light] = h_light
 
                     else:
-                        # No splitting (Data, Top, etc.)
-                        # Sum over all flavors
+                        # No splitting
                         h_1d = h[:, i_pt, category, sum]
-                        name = f"{base_name}_{process}_nominal"
+                        name = f"{base_name}_{proc_name}_nominal"
                         fout[name] = h_1d
 
     print(f"Saved ROOT file to {output_root_path}")
