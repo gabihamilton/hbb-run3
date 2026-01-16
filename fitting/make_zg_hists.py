@@ -39,6 +39,7 @@ def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
         # Extracting variables
         Txcc = data["FatJet0_ParTPXccVsQCD"]
         Txbb = data["FatJet0_ParTPXbbVsQCD"]
+        Txbbxcc = data["FatJet0_ParTPXbbXcc"]
 
         msd = data["FatJet0_msd"]
         pt = data["FatJet0_pt"]
@@ -86,12 +87,13 @@ def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true):
         # --- FIX: Change WP to 0.95 to match reference ---
         WP = 0.95
 
-        # --- FIX: Removed (Txbb > Txcc) to match strict reference reproduction ---
         selection_dict = {
-            "pass_bb": pre_selection & (Txbb > WP),
-            "pass_cc": pre_selection
-            & (Txcc > WP),  # usually orthogonalized but reference didn't imply it
-            "fail": pre_selection & (Txbb <= WP),
+            # Pass BB: Combined > 0.82 AND bb score is higher than cc
+            "pass_bb": pre_selection & (Txbbxcc > WP) & (Txbb > Txcc),
+            # Pass CC: Combined > 0.82 AND cc score is higher than bb
+            "pass_cc": pre_selection & (Txbbxcc > WP) & (Txcc > Txbb),
+            # Fail: Combined <= 0.82
+            "fail": pre_selection & (Txbbxcc <= WP),
         }
 
         cut_bb = genf == 3
@@ -153,6 +155,7 @@ def main(args):
         "FatJet0_msd",  # Observable/Kinematic cut
         "FatJet0_ParTPXbbVsQCD",  # ParticleNet b-tagger
         "FatJet0_ParTPXccVsQCD",  # ParticleNet c-tagger
+        "FatJet0_ParTPXbbXcc",  # ParticleNet bb+cc combined tagger
         "Photon0_pt",  # New Kinematic cut
         "FatJet0_phi",
         "Photon0_phi",
@@ -187,7 +190,7 @@ def main(args):
     # --- FIX 5: Hardcoded Filters for Low pT ---
     # This ensures we don't cut out the Z-Gamma events
     filters = [
-        ("FatJet0_pt", ">", 200),
+        ("FatJet0_pt", ">", 250),
         ("FatJet0_pt", "<", 2000),
     ]
 
