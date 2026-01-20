@@ -161,7 +161,7 @@ def main():
     # CMS Label
     hep.cms.label("Private Work", data=True, lumi=LUMI, year="2022", ax=ax, loc=0)
 
-    out_name = "check_zgamma_plot_styled.png"
+    out_name = "check_zgamma_plot_styledOLD.png"
     plt.savefig(out_name)
     print(f"\nPlot saved to {out_name}")
 
