@@ -182,6 +182,11 @@
         "ZGto2QG-1Jets_PTG-200",
         "ZGto2NuG-1Jets_PTG-10to100"
     ],
+    "TTGamma": [
+        "TTG-1Jets_PTG-10to100",
+        "TTG-1Jets_PTG-100to200",
+        "TTG-1Jets_PTG-200"
+    ],
     "EWKZ": [
         "VBFZto2Q",
         "VBFZto2L",
