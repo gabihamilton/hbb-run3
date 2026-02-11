@@ -88,25 +88,61 @@ def rhalphabet(args):
     cats_cfg = config["categories"]
     cats = list(cats_cfg.keys())
 
+    # Standard Luminosity Uncertainty
     sys_lumi_uncor = rl.NuisanceParameter(f"CMS_lumi_13TeV_{year[:4]}", "lnN")
-    do_systematics = config.get("do_systematics", False)
 
+    do_systematics = config.get("do_systematics", False)
     syst_map = {}
+
     if do_systematics:
-        available_systs = {
+        # --- A. Experimental Systematics (from sys_dict) ---
+        available_exp_systs = {
             "pileup": rl.NuisanceParameter(f"CMS_PU_{year}", "lnN"),
             "JES": rl.NuisanceParameter(f"CMS_scale_j_{year}", "lnN"),
             "JER": rl.NuisanceParameter(f"CMS_res_j_{year}", "lnN"),
             "UES": rl.NuisanceParameter(f"CMS_ues_j_{year}", "lnN"),
-            "btagSFb": rl.NuisanceParameter(f"CMS_btagSFb_{year}", "lnN"),
-            "btagSFc": rl.NuisanceParameter(f"CMS_btagSFc_{year}", "lnN"),
-            "btagSFlight": rl.NuisanceParameter(f"CMS_btagSFlight_{year}", "lnN"),
+            "MuonPTScale": rl.NuisanceParameter(f"CMS_scale_m_{year}", "lnN"),
+            "MuonPTRes": rl.NuisanceParameter(f"CMS_res_m_{year}", "lnN"),
+            f"btagSFb_{year}": rl.NuisanceParameter(f"CMS_btagSFb_{year}", "lnN"),
+            f"btagSFc_{year}": rl.NuisanceParameter(f"CMS_btagSFc_{year}", "lnN"),
+            f"btagSFlight_{year}": rl.NuisanceParameter(f"CMS_btagSFlight_{year}", "lnN"),
+            "btagSFb_correlated": rl.NuisanceParameter(f"CMS_btagSFb_correlated_{year}", "lnN"),
+            "btagSFc_correlated": rl.NuisanceParameter(f"CMS_btagSFc_correlated_{year}", "lnN"),
+            "btagSFlight_correlated": rl.NuisanceParameter(
+                f"CMS_btagSFlight_correlated_{year}", "lnN"
+            ),
         }
+
+        # --- B. Theory Systematics (PDF, Scale, ISR/FSR) ---
+        theory_systs = {
+            "pdf_ggF": rl.NuisanceParameter("pdf_Higgs_ggF", "lnN"),
+            "pdf_VBF": rl.NuisanceParameter("pdf_Higgs_VBF", "lnN"),
+            "pdf_VH": rl.NuisanceParameter("pdf_Higgs_VH", "lnN"),
+            "pdf_ttH": rl.NuisanceParameter("pdf_Higgs_ttH", "lnN"),
+            "scale_ggF": rl.NuisanceParameter("QCDscale_ggF", "lnN"),
+            "scale_VBF": rl.NuisanceParameter("QCDscale_VBF", "lnN"),
+            "scale_VH": rl.NuisanceParameter("QCDscale_VH", "lnN"),
+            "scale_ttH": rl.NuisanceParameter("QCDscale_ttH", "lnN"),
+            "isr_ggF": rl.NuisanceParameter("ISRPartonShower_ggF", "lnN"),
+            "isr_VBF": rl.NuisanceParameter("ISRPartonShower_VBF", "lnN"),
+            "isr_VH": rl.NuisanceParameter("ISRPartonShower_VH", "lnN"),
+            "isr_ttH": rl.NuisanceParameter("ISRPartonShower_ttH", "lnN"),
+            "fsr_ggF": rl.NuisanceParameter("FSRPartonShower_ggF", "lnN"),
+            "fsr_VBF": rl.NuisanceParameter("FSRPartonShower_VBF", "lnN"),
+            "fsr_VH": rl.NuisanceParameter("FSRPartonShower_VH", "lnN"),
+            "fsr_ttH": rl.NuisanceParameter("FSRPartonShower_ttH", "lnN"),
+        }
+
+        # Combine all available systematics into one map
+        all_available = {**available_exp_systs, **theory_systs}
+
+        # Pull active list from JSON config
         active_list = config.get("active_systematics", [])
         for name in active_list:
-            clean_name = name.replace(f"_{year}", "")
-            if clean_name in available_systs:
-                syst_map[name] = available_systs[clean_name]
+            if name in all_available:
+                syst_map[name] = all_available[name]
+            else:
+                print(f"Warning: Systematic {name} requested in JSON but not defined in script.")
 
     # ---------------------------------------------------------
     # 4. QCD ESTIMATION LOOP
@@ -300,10 +336,10 @@ def rhalphabet(args):
 
         for ptbin in range(len(ptbins) - 1):
             binindex = ptbin
+            # Handle the VBF hi/lo binning logic
             if analysis == "vbf" and "hi" in cat:
                 binindex = 1
 
-            # Dynamic regions logic
             regions = [f"pass_{r}_" for r in regions_to_fit] + ["fail_"]
 
             for region in regions:
@@ -312,6 +348,7 @@ def rhalphabet(args):
                 model.addChannel(ch)
 
                 for proc_name, info in sample_dict.items():
+                    # proc_name is e.g., 'ggF', 'VBF', 'ttbar'
                     templ = get_merged_template(
                         infile_path, info["components"], region, binindex + 1, cat, msd
                     )
@@ -320,16 +357,19 @@ def rhalphabet(args):
                     if badtemplate(nominal):
                         continue
 
-                    if analysis == "zgcr" and proc_name == "wgammacs" and np.sum(nominal) < 0.1:
-                        continue
-
                     stype = rl.Sample.SIGNAL if info["is_signal"] else rl.Sample.BACKGROUND
                     sample = rl.TemplateSample(ch.name + "_" + proc_name, stype, templ)
+
+                    # Apply Luminosity
                     sample.setParamEffect(
                         sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2023"])
                     )
 
                     if do_systematics:
+                        # 1. Automatic MC Statistical Uncertainties (Barlow-Beeston Lite)
+                        sample.autoMCStats(lnN=True)
+
+                        # 2. Experimental Systematics (Shapes from ROOT file)
                         add_systematics(
                             sample,
                             nominal,
@@ -342,6 +382,99 @@ def rhalphabet(args):
                             cat,
                             msd,
                         )
+
+                        # 3. Theory Systematics (Process-Specific Logic)
+
+                        # --- VBF / EWKZ Scale ---
+                        if proc_name == "VBF" or proc_name == "EWKZ":
+                            scale_up = get_merged_template(
+                                infile_path,
+                                info["components"],
+                                region,
+                                binindex + 1,
+                                cat,
+                                msd,
+                                syst="scalevar_3ptUp",
+                            )[0]
+                            scale_do = get_merged_template(
+                                infile_path,
+                                info["components"],
+                                region,
+                                binindex + 1,
+                                cat,
+                                msd,
+                                syst="scalevar_3ptDown",
+                            )[0]
+                            sample.setParamEffect(
+                                syst_map["scale_VBF"],
+                                np.sum(scale_up) / np.sum(nominal),
+                                np.sum(scale_do) / np.sum(nominal),
+                            )
+
+                        # --- Higgs Signal Theory (PDF, ISR/FSR, Scale) ---
+                        if proc_name in ["ggF", "VBF", "WH", "ZH", "ggZH", "ttH"]:
+                            # Mapping logic: if proc is WH/ZH/ggZH, use "VH" for the nuisance name
+                            proc_map_name = "VH" if proc_name in ["WH", "ZH", "ggZH"] else proc_name
+
+                            for s_key, s_name in [
+                                ("pdf", "PDF_weight"),
+                                ("fsr", "FSRPartonShower"),
+                                ("isr", "ISRPartonShower"),
+                            ]:
+                                s_up = get_merged_template(
+                                    infile_path,
+                                    info["components"],
+                                    region,
+                                    binindex + 1,
+                                    cat,
+                                    msd,
+                                    syst=f"{s_name}Up",
+                                )[0]
+                                s_do = get_merged_template(
+                                    infile_path,
+                                    info["components"],
+                                    region,
+                                    binindex + 1,
+                                    cat,
+                                    msd,
+                                    syst=f"{s_name}Down",
+                                )[0]
+
+                                # Look up using the mapped name (e.g., pdf_VH)
+                                syst_obj = syst_map.get(f"{s_key}_{proc_map_name}")
+                                if syst_obj:
+                                    sample.setParamEffect(
+                                        syst_obj,
+                                        np.sum(s_up) / np.sum(nominal),
+                                        np.sum(s_do) / np.sum(nominal),
+                                    )
+
+                            # ggF specific Scale (7pt)
+                            if proc_name == "ggF":
+                                sc_up = get_merged_template(
+                                    infile_path,
+                                    info["components"],
+                                    region,
+                                    binindex + 1,
+                                    cat,
+                                    msd,
+                                    syst="scalevar_7ptUp",
+                                )[0]
+                                sc_do = get_merged_template(
+                                    infile_path,
+                                    info["components"],
+                                    region,
+                                    binindex + 1,
+                                    cat,
+                                    msd,
+                                    syst="scalevar_7ptDown",
+                                )[0]
+                                sample.setParamEffect(
+                                    syst_map["scale_ggF"],
+                                    np.sum(sc_up) / np.sum(nominal),
+                                    np.sum(sc_do) / np.sum(nominal),
+                                )
+
                     ch.addSample(sample)
 
                 # Data
