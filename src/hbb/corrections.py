@@ -45,6 +45,7 @@ pog_jsons = {
     "muon": ["MUO", "muon_Z.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "photon": ["EGM", "photon.json.gz"],
+    "photon2024": ["EGM", "photonID_v1.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
     "fatjet_jec": ["JME", "fatJet_jerc.json.gz"],
     "jet_jec": ["JME", "jet_jerc.json.gz"],
@@ -103,14 +104,19 @@ def add_pileup_weight(weights: Weights, year: str, nPU):
     # https://twiki.cern.ch/twiki/bin/view/CMS/LumiRecommendationsRun3
     values = {}
 
-    cset = correctionlib.CorrectionSet.from_file(get_pog_json("pileup", year))
+    if not year == "2024":
+        cset = correctionlib.CorrectionSet.from_file(get_pog_json("pileup", year))
+    else:
+        pog_json_file = f"{package_path}/hbb/data/puWeights_2024.json"
+        cset = correctionlib.CorrectionSet.from_file(pog_json_file)
+
     corr = {
         "2018": "Collisions18_UltraLegacy_goldenJSON",
         "2022": "Collisions2022_355100_357900_eraBCD_GoldenJson",
         "2022EE": "Collisions2022_359022_362760_eraEFG_GoldenJson",
         "2023": "Collisions2023_366403_369802_eraBC_GoldenJson",
         "2023BPix": "Collisions2023_369803_370790_eraD_GoldenJson",
-        #"2024": "", Not yet derived by pog
+        "2024": "Pileup",
     }[year]
     # evaluate and clip up to 4 to avoid large weights
     values["nominal"] = ak_clip(cset[corr].evaluate(nPU, "nominal"), 0, 4)
@@ -239,7 +245,7 @@ def get_jetveto_event(jets: JetArray, year: str):
         "2022EE": "Summer22EE_23Sep2023_RunEFG_V1",
         "2023": "Summer23Prompt23_RunC_V1",
         "2023BPix": "Summer23BPixPrompt23_RunD_V1",
-        "2024": "Summer24Prompt24",
+        "2024": "Summer24Prompt24_RunBCDEFGHI_V1",
     }[year]
 
     jet_veto = get_veto(j, nj, corr_str) > 0
@@ -350,18 +356,23 @@ def correct_met(met, jets: JetArray):
 
     return corrected_met
 
-def add_btag_weights(weights: Weights, jets: JetArray, btagger: str, wp: str, year: str, dataset: str):
+def add_btag_weights(weights: Weights, jets: JetArray, btagger: str, wp: str, year: str):
     """
     Apply btag event scale factor for AK4 jets queried
     Using BTV fixed WP recommendations
     https://btv-wiki.docs.cern.ch/PerformanceCalibration/fixedWPSFRecommendations/
     """
+    sys_name = ""
     if "PNet" in btagger:
         sys_name = "particleNet"
     elif "RobustParT" in btagger:
         sys_name = "robustParticleTransformer"
     elif "DeepFlav" in btagger:
         sys_name = "deepJet"
+
+    if year == "2024":
+        #SFs not derived by BTV for Summer24 yet
+        return ak.ones_like(ak.num(jets))
 
     cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
     btag_cut = b_taggers[year]["AK4"][btagger][wp]
@@ -370,7 +381,11 @@ def add_btag_weights(weights: Weights, jets: JetArray, btagger: str, wp: str, ye
     with open(eff_file, 'rb') as f:
         lookup_dict = pickle.load(f)
 
-    def eff_lookup(x, y, z): return lookup_dict[dataset](x, y, z)
+    eff_opt = "TTbar+QCD"  
+        #options = "TTbar+QCD", "TTbar", "QCD"
+        #defined in src/hbb/data/btag/compile_btag_eff.py
+
+    def eff_lookup(x, y, z): return lookup_dict[eff_opt](x, y, z)
 
     jets_l = jets[(jets.hadronFlavour == 0) & (abs(jets.eta)<2.5)]
     jets_b = jets[(jets.hadronFlavour == 4) & (abs(jets.eta)<2.5)]
@@ -481,14 +496,24 @@ def add_photon_weights(weights: Weights, year: str, photons):
         "2022EE" : "2022Re-recoE+PromptFG",
         "2023" : "2023PromptC",
         "2023BPix" : "2023PromptD",
-        # "2024"    #TODO double check
+        "2024" : "2024",
     }
 
-    cset = correctionlib.CorrectionSet.from_file(get_pog_json("photon", year))
+    if not year == "2024":
+        cset = correctionlib.CorrectionSet.from_file(get_pog_json("photon", year))
+    else:
+        cset = correctionlib.CorrectionSet.from_file(get_pog_json("photon2024", year))
 
-    id_nom = cset[id_key].evaluate(year_map[year], "sf", "Tight", photons.eta, photons.pt)
-    id_up = cset[id_key].evaluate(year_map[year], "sfup", "Tight", photons.eta, photons.pt)
-    id_down = cset[id_key].evaluate(year_map[year], "sfdown", "Tight", photons.eta, photons.pt)
+    if "2023" in year:   
+        #json format is different for 23 and 23BPix
+        #https://twiki.cern.ch/twiki/bin/view/CMS/EgammSFandSSRun3#Photon_JSON_format_AN1
+        id_nom = cset[id_key].evaluate(year_map[year], "sf", "Tight", photons.eta, photons.pt, photons.phi)
+        id_up = cset[id_key].evaluate(year_map[year], "sfup", "Tight", photons.eta, photons.pt, photons.phi)
+        id_down = cset[id_key].evaluate(year_map[year], "sfdown", "Tight", photons.eta, photons.pt, photons.phi)
+    else:
+        id_nom = cset[id_key].evaluate(year_map[year], "sf", "Tight", photons.eta, photons.pt)
+        id_up = cset[id_key].evaluate(year_map[year], "sfup", "Tight", photons.eta, photons.pt)
+        id_down = cset[id_key].evaluate(year_map[year], "sfdown", "Tight", photons.eta, photons.pt)
 
     weights.add("photon_ID", id_nom, id_up, id_down)
 
