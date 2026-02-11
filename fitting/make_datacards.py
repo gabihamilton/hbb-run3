@@ -2,7 +2,7 @@
 Datacard Maker - Fully Configuration-Driven
 Supports: VBF Hbb Analysis, ZGamma Validation Region
 
-Author(s): Gabi Hamilton, Lara Mason, Raghav Kansal
+Author(s): Gabi Hamilton, Lara Mason, Cristina Mantilla
 """
 
 from __future__ import annotations
