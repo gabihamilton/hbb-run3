@@ -7,10 +7,19 @@
     "active_systematics": ["pileup", "JES", "JER"],
     "rho_scaling_max": -1.0,
 
-    "observable": { "name": "msd", "min": 20, "max": 201, "nbins": 23 },
+    "observable": {
+        "name": "msd",
+        "branch_name": "FatJet0_msd",
+        "min": 20,
+        "max": 201,
+        "nbins": 23
+    },
 
     "categories": {
-        "zgcr": { "bins": [250, 1200] }
+        "zgcr": {
+            "name": "control-zgamma",
+            "bins": [250, 1200]
+        }
     },
 
     "process_groups": {

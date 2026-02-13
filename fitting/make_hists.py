@@ -2,273 +2,221 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
-import os
 from pathlib import Path
 
 import hist
+import numpy as np
 import uproot
 
 from hbb import utils
 
+# --- REGION DIRECTORY MAPPING ---
+# Maps the keys in your setup.json to the actual directory names on EOS
+REGION_MAP = {
+    "zgcr": "control-zgamma",
+    "mucr": "control-tt",
+    "vh": "signal-vh",
+    "vbf": "signal-vbf",
+    "ggf": "signal-ggf",
+}
 
-def fill_hists(outdict, events, region, reg_cfg, obs_cfg, qq_true, s, j_var=None):
 
-    h = hist.Hist(
-        hist.axis.Regular(
-            obs_cfg["nbins"],
-            obs_cfg["min"],
-            obs_cfg["max"],
-            name=obs_cfg["name"],
-            label=obs_cfg["name"],
-        )
-    )
+def fill_ptbinned_histogram(h, events, region_key, setup, weight_syst="nominal"):
+    for process_name, data in events.items():
+        is_data = "data" in process_name.lower()
 
-    bins_list = reg_cfg["bins"]
-    bin_pname = reg_cfg["bin_pname"]
-    str_bin_br = reg_cfg["branch_name"]
-
-    for _process_name, data in events.items():
-
-        if j_var or s == "nominal":
-            weight_val = data["finalWeight"].astype(float)
-            if j_var:
-                s = j_var
+        if not is_data and weight_syst != "nominal" and weight_syst in data.columns:
+            weight_val = data[weight_syst].astype(float) / data["sum_genWeight"].astype(float)
         else:
-            weight_val = data[s].astype(float) / data["sum_genWeight"].astype(float)
+            weight_val = data["finalWeight"].astype(float)
 
-        bin_br = data[str_bin_br]
-        obs_br = data[obs_cfg["branch_name"]]
+        var_col = setup["observable"]["branch_name"]
+        pt = data["FatJet0_pt"]
+        msd = data["FatJet0_msd"]
 
-        Txbb = data["FatJet0_ParTPXbbVsQCD"]
-        Txcc = data["FatJet0_ParTPXccVsQCD"]
-        Txbbxcc = data["FatJet0_ParTPXbbXcc"]
-        genf = data["GenFlavor"]
+        dphi = np.nan
+        if "Photon0_phi" in data.columns and "FatJet0_phi" in data.columns:
+            dphi_raw = np.abs(data["Photon0_phi"] - data["FatJet0_phi"])
+            dphi = np.where(dphi_raw > np.pi, 2 * np.pi - dphi_raw, dphi_raw)
 
-        pre_selection = (obs_br > obs_cfg["min"]) & (obs_br < obs_cfg["max"])
+        var_series = dphi if var_col == "delta_phi_photon_jet" else data[var_col]
+        is_mc = "GenFlavor" in data.columns
+        genflavordata = (
+            data["GenFlavor"].astype(np.int8) if is_mc else np.zeros(len(data), dtype=np.int8)
+        )
+
+        working_point = setup.get("working_point", 0.95)
+        obs_min, obs_max = setup["observable"]["min"], setup["observable"]["max"]
+        basic_cuts = (msd > obs_min) & (msd < obs_max)
+
+        # Check the actual directory name for Zgamma logic
+        actual_reg_name = REGION_MAP.get(region_key, region_key)
+        if "zgamma" in actual_reg_name:
+            met_pt = data["MET"].to_numpy() if "MET" in data.columns else np.zeros(len(data))
+            trigger = data["Photon200"] | data["Photon110EB_TightID_TightIso"]
+            topo_cuts = (dphi > 2.2) & (met_pt < 50) & (data["Photon0_pt"] > 120)
+            pre_selection = basic_cuts & topo_cuts & trigger
+        else:
+            pre_selection = basic_cuts & (pt > 450)
+
+        Txcc, Txbb, Txbbxcc = (
+            data["FatJet0_ParTPXccVsQCD"],
+            data["FatJet0_ParTPXbbVsQCD"],
+            data["FatJet0_ParTPXbbXcc"],
+        )
 
         selection_dict = {
-            "pass_bb": pre_selection & (Txbbxcc > 0.82) & (Txbb > Txcc),
-            "pass_cc": pre_selection & (Txbbxcc > 0.82) & (Txcc > Txbb),
-            "fail": pre_selection & (Txbbxcc <= 0.82),
-            "pass": pre_selection & (Txbbxcc > 0.82),
+            "pass_bb": pre_selection & (Txbbxcc > working_point) & (Txbb > Txcc),
+            "pass_cc": pre_selection & (Txbbxcc > working_point) & (Txcc > Txbb),
+            "fail": pre_selection & (Txbbxcc <= working_point),
+            "pass": pre_selection & (Txbbxcc > working_point),
         }
 
-        cut_bb = genf == 3
-        cut_qq = (genf > 0) & (genf < 3)
-        cut_c = genf == 2
-        cut_light = (genf > 0) & (genf < 2)
+        for category, selection in selection_dict.items():
+            if category in h.axes["category"]:
+                h.fill(
+                    var_series[selection],
+                    pt[selection],
+                    category=category,
+                    genflavor=genflavordata[selection],
+                    weight=weight_val[selection],
+                )
+    return h
 
-        def fill_h(name, sel):
-            h.view()[:] = 0
-            h.fill(
-                obs_br[sel],
-                weight=weight_val[sel],
-            )
-            if name not in outdict:
-                outdict[name] = h.copy()
-            else:
-                outdict[name] += h.copy()
-            return
 
-        for i in range(len(bins_list) - 1):
-            bin_cut = (bin_br > bins_list[i]) & (bin_br < bins_list[i + 1]) & pre_selection
+def export_to_root(histograms, output_root_path, region_key, samples_qq, syst, data_key):
+    suffix = "nominal" if syst == "nominal" else syst
+    with (
+        uproot.update(output_root_path)
+        if output_root_path.exists()
+        else uproot.recreate(output_root_path)
+    ) as fout:
+        for process, h in histograms.items():
+            proc_name = "data_obs" if process == data_key else process
+            should_split = any(s in process for s in samples_qq) and process != data_key
 
-            for category, selection in selection_dict.items():
-                if qq_true:
-                    name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}_{s}"
-                    fill_h(name, (selection & bin_cut & cut_qq))
-
-                    name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}bb_{s}"
-                    fill_h(name, (selection & bin_cut & cut_bb))
-
-                    name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}c_{s}"
-                    fill_h(name, (selection & bin_cut & cut_c))
-
-                    name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}light_{s}"
-                    fill_h(name, (selection & bin_cut & cut_light))
-
-                else:
-
-                    name = f"{region}_{category}_{bin_pname}{i+1}_{_process_name}_{s}"
-                    fill_h(name, (selection & bin_cut))
-
-    return outdict
+            for i_pt in range(len(h.axes["pt1"].edges) - 1):
+                pt_bin = f"pt{i_pt+1}"
+                for category in h.axes["category"]:
+                    base = f"{region_key}_{category}_{pt_bin}"
+                    if should_split:
+                        fout[f"{base}_{proc_name}bb_{suffix}"] = h[:, i_pt, category, 3]
+                        fout[f"{base}_{proc_name}c_{suffix}"] = h[:, i_pt, category, 2]
+                        fout[f"{base}_{proc_name}light_{suffix}"] = (
+                            h[:, i_pt, category, 1] + h[:, i_pt, category, 0]
+                        )
+                    else:
+                        fout[f"{base}_{proc_name}_{suffix}"] = h[:, i_pt, category, sum]
 
 
 def main(args):
-    year = args.year
-    tag = args.tag
-    do_systs = args.systs
+    with Path(args.setup).open() as f:
+        setup = json.load(f)
+    with Path("pmap_run3.json").open() as f:
+        pmap = json.load(f)
 
-    path_to_dir = f"/eos/uscms/store/group/lpchbbrun3/skims/{tag}"
+    region_key = next(iter(setup["categories"]))
+    reg_cfg = setup["categories"][region_key]
+    pt_bins = np.array(reg_cfg["bins"])
+    obs = setup["observable"]
 
-    samples_qq = ["Wjets", "Zjets", "EWKW", "EWKZ", "EWKV"]
+    # Use the map to find the EOS directory name
+    region_to_load = REGION_MAP.get(region_key, region_key)
 
-    columns = [
+    if "zgamma" in region_to_load:
+        data_map_key = "EGammadata"
+    elif "tt" in region_to_load:
+        data_map_key = "Muondata"
+    else:
+        data_map_key = "Jetdata"
+
+    print(f"--- Running Region Key: {region_key} ---")
+    print(f"--- Loading from EOS Directory: {region_to_load} ---")
+    print(f"--- Targeting Data Stream: {data_map_key} ---")
+
+    folder_systs = ["JES", "JER", "UES", "MuonPTScale", "MuonPTRes"]
+    systs_to_run = ["nominal"]
+    if setup.get("do_systematics"):
+        for s in setup.get("active_systematics", []):
+            systs_to_run.extend([f"{s}Up", f"{s}Down"])
+
+    output_root = Path(args.outdir) / f"fitting_{args.year}_{region_key}.root"
+    if output_root.exists():
+        output_root.unlink()
+
+    axis_var = hist.axis.Regular(obs["nbins"], obs["min"], obs["max"], name=obs["name"])
+    axis_pt = hist.axis.Variable(pt_bins, name="pt1")
+    axis_cat = hist.axis.StrCategory(["pass_bb", "pass_cc", "fail", "pass"], name="category")
+    axis_flav = hist.axis.IntCategory([0, 1, 2, 3], name="genflavor")
+
+    cols = [
         "weight",
         "FatJet0_pt",
         "FatJet0_msd",
         "FatJet0_ParTPXbbVsQCD",
         "FatJet0_ParTPXccVsQCD",
         "FatJet0_ParTPXbbXcc",
-        "VBFPair_mjj",
         "GenFlavor",
     ]
+    if data_map_key == "EGammadata":
+        cols += [
+            "Photon0_pt",
+            "Photon0_phi",
+            "FatJet0_phi",
+            "MET",
+            "Photon200",
+            "Photon110EB_TightID_TightIso",
+        ]
 
-    energy_variations = [None, "JES", "JER", "UES", "MuonPTScale", "MuonPTRes"]
+    for syst in systs_to_run:
+        print(f"\n>>> Running Systematic Pass: {syst}")
+        is_folder = any(fs in syst for fs in folder_systs)
+        variation = syst if is_folder else "nominal"
 
-    systs = [
-        # 'ISRPartonShower',
-        # 'FSRPartonShower', 
-        # 'aS_weight',
-        # 'PDF_weight',  
-        # 'PDFaS_weight', 
-        # 'scalevar_7pt', 
-        # 'scalevar_3pt',
-        'pileup',
-        'btagSFb_correlated',
-        'btagSFc_correlated',
-        'btagSFlight_correlated'
-    ]
+        histograms = {}
+        for process, datasets in pmap.items():
+            if "data" in process.lower() and process != data_map_key:
+                continue
+            if process == data_map_key and syst != "nominal":
+                continue
 
-    year_systs = [
-        "btagSFb",
-        "btagSFc",
-        "btagSFlight",
-    ]
+            print(f"  Processing Process: {process}")
+            h = hist.Hist(axis_var, axis_pt, axis_cat, axis_flav)
+            for dataset in datasets:
+                events = utils.load_samples(
+                    Path(f"/eos/uscms/store/group/lpchbbrun3/skims/{args.tag}/{args.year}"),
+                    {process: [dataset]},
+                    columns=cols,
+                    region=region_to_load,
+                    variation=variation,
+                )
+                if events:
+                    h = fill_ptbinned_histogram(
+                        h, events, region_key, setup, syst if not is_folder else "nominal"
+                    )
+                gc.collect()
 
-    cr_systs = {"mucr": ["muon_ID", "muon_ISO"], "zgcr": ["photon_ID"]}
+            if h.sum() > 0:
+                histograms[process] = h
 
-    data_dirs = {year: Path(path_to_dir) / year}
-    if args.year == "Run3":
-        data_dirs = {
-            "2022": Path(path_to_dir) / "2022",
-            "2022EE": Path(path_to_dir) / "2022EE",
-            "2023": Path(path_to_dir) / "2023",
-            "2023BPix": Path(path_to_dir) / "2023BPix",
-        }
+        if args.save_root:
+            export_to_root(
+                histograms, output_root, region_key, setup.get("samples_qq", []), syst, data_map_key
+            )
 
-    out_path = f"results/{tag}/{year}"
-    output_file = f"{out_path}/signalregion.root"
-
-    if not os.path.exists(out_path):
-        os.makedirs(out_path)
-
-    if os.path.isfile(output_file):
-        os.remove(output_file)
-    fout = uproot.create(output_file)
-
-    # So I can remember the settings I used for each set of results produced
-    os.popen(f"cp setup.json {out_path}")
-    with open("setup.json") as f:
-        setup = json.load(f)
-        cats = setup["categories"]
-        obs_cfg = setup["observable"]
-
-    with open("pmap_run3.json") as f:
-        pmap = json.load(f)
-
-    filters = [
-        ("FatJet0_pt", ">", 450),
-        ("FatJet0_pt", "<", 1200),
-        ("VBFPair_mjj", ">", -2),
-        ("VBFPair_mjj", "<", 13000),
-    ]
-
-    if obs_cfg["branch_name"] not in columns:
-        columns.append(obs_cfg["branch_name"])
-
-    out_hists = {}
-    for process, datasets in pmap.items():
-        for dataset in datasets:
-            for reg, cfg in cats.items():
-                for year, data_dir in data_dirs.items():
-                    for var in energy_variations:
-
-                        if not var:
-                            c_systs_full = systs + [f"{syst}_{year}" for syst in year_systs]
-                            c_systs_full = (
-                                c_systs_full + cr_systs[reg] if reg in cr_systs else c_systs_full
-                            )
-                            c_systs_full = [
-                                f"{syst}{dir}" for syst in c_systs_full for dir in ["Up", "Down"]
-                            ]
-                            events = utils.load_samples(
-                                data_dir,
-                                {process: [dataset]},
-                                columns=columns if (("data" in process) or (not do_systs)) else columns+c_systs_full,
-                                region=cfg["name"],
-                                filters=filters,
-                                variation=var,
-                            )
-
-                            if not events:
-                                continue
-
-                            fill_hists(
-                                out_hists,
-                                events,
-                                reg,
-                                cfg,
-                                obs_cfg,
-                                (process in samples_qq),
-                                "nominal",
-                                var,
-                            )
-
-                            if do_systs:
-                                if "data" not in process:
-                                    for syst in c_systs_full:
-                                        fill_hists(out_hists, events, reg, cfg, obs_cfg, (process in samples_qq), f"{syst}", var)
-
-                        if do_systs:
-                            if var:   #energy variations
-                                for direction in ["Up", "Down"]:
-                                    var_jerc = f"{var}{direction}"
-
-                                    events = utils.load_samples(
-                                        data_dir,
-                                        {process: [dataset]},
-                                        columns=columns,
-                                        region=cfg["name"],
-                                        filters=filters,
-                                        variation=var_jerc
-                                    )
-
-                                    if not events:
-                                        continue
-
-                                    fill_hists(out_hists, events, reg, cfg, obs_cfg, (process in samples_qq), var_jerc, var_jerc)
-
-
-    for name, h in out_hists.items():
-        fout[name] = h
-
-    print(f"Histograms saved to {output_file}")
+    print("\n" + "=" * 50)
+    print(f"DONE: Histograms saved to {output_root}")
+    print("=" * 50 + "\n")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Make histograms for a given year.")
-    parser.add_argument(
-        "--year",
-        help="year",
-        type=str,
-        required=True,
-        choices=["2022", "2022EE", "2023", "2023BPix", "Run3"],
-    )
-    parser.add_argument(
-        "--tag",
-        help="tag",
-        type=str,
-        required=True
-    )
-    parser.add_argument(
-        "--systs",
-        action="store_true",
-        help="Create hists for systematic variations",
-        default=False,
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--year", required=True, choices=["2022", "2022EE", "2023", "2023BPix"])
+    parser.add_argument("--tag", required=True)
+    parser.add_argument("--setup", required=True)
+    parser.add_argument("--outdir", default="results")
+    parser.add_argument("--save-root", action="store_true")
     args = parser.parse_args()
-
     main(args)
