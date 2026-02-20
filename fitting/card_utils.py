@@ -63,10 +63,9 @@ def get_template(filename, sName, region, ptbin, cat, obs, syst):
             np.zeros(len(obs.binning) - 1),
         )
 
-    # Clean region name (remove trailing underscores if present)
     reg_clean = region.rstrip("_")
 
-    # Construct histogram name based on category patterns
+    # Construct the exact format: e.g. zgcr_fail_pt1_GJets_nominal
     name = f"{cat}_{reg_clean}"
 
     # Analysis-specific naming quirks
@@ -74,13 +73,15 @@ def get_template(filename, sName, region, ptbin, cat, obs, syst):
         name += f"_pt{ptbin}_"
     elif cat.startswith("vbf"):
         name += f"_mjj{ptbin}_"
-    elif cat.startswith("vh") or cat.startswith("mucr") or cat.startswith("zgcr"):
+    elif cat.startswith(("vh", "mucr", "zgcr")):
         name += f"_pt{ptbin}_"
 
     name += f"{sName}_{syst}"
 
     h = f.Get(name)
+
     if not h:
+        print(f"WARNING: Histogram {name} not found in {filename}")
         return (
             np.zeros(len(obs.binning) - 1),
             obs.binning,
@@ -147,7 +148,7 @@ def one_bin(filename, sName, region, ptbin, cat, syst):
     return (np.array([integral]), np.array([0.0, 1.0]), "onebin", np.array([error2]))
 
 
-def plot_mctf(tf_MCtempl, msdbins, name, year, tag, out_dir_base, pt_min=450.0, rho_max=-2.1):
+def plot_mctf(tf_MCtempl, msdbins, name, _year, _tag, out_dir_base, pt_min=450.0, rho_max=-2.1):
     import matplotlib.pyplot as plt
     import pandas as pd  # Ensure pandas is imported
 
@@ -166,7 +167,7 @@ def plot_mctf(tf_MCtempl, msdbins, name, year, tag, out_dir_base, pt_min=450.0, 
     rhopts = 2 * np.log(msdpts / ptpts)
     rhopts_scaled = (rhopts - (-6)) / (rho_max - (-6))
 
-    # 3. SAFETY FILTER (Restoring the logic from your old script)
+    # 3. SAFETY FILTER (Restoring the logic from old script)
     validbins = (
         (rhopts_scaled >= 0) & (rhopts_scaled <= 1) & (ptpts_scaled >= 0) & (ptpts_scaled <= 1)
     )
@@ -199,7 +200,9 @@ def plot_mctf(tf_MCtempl, msdbins, name, year, tag, out_dir_base, pt_min=450.0, 
     print(f"Saved MCTF plots to {outdir}")
 
 
-def add_systematics(sample, nominal, systs, infile_path, year, components, region, ptbin, cat, obs):
+def add_systematics(
+    sample, nominal, systs, infile_path, _year, components, region, ptbin, cat, obs
+):
     """
     Applies lnN and Shape systematics to a Rhalphalib sample object.
 

@@ -5,7 +5,9 @@ Plotting script adapted for new make_histos.py output (CamelCase keys).
 from __future__ import annotations
 
 import argparse
+import json
 import pickle
+import sys
 from pathlib import Path
 
 import hist
@@ -13,8 +15,11 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 import yaml
 
-# Ensure you have this local module, or I can provide a standalone ratio_plot function
-from plotting import ratio_plot 
+# Add the ../python directory to the path
+sys.path.append(str(Path(__file__).resolve().parent.parent / "python"))
+
+from plotting import ratio_plot
+
 from hbb.common_vars import LUMI
 
 hep.style.use("CMS")
@@ -71,7 +76,7 @@ def plot_by_process(
         print(f"  Processing pt bin: {pt_low} - {pt_high} (Index {i})")
 
         histograms_to_plot = {}
-        total_yield = 0 
+        total_yield = 0
 
         for process, h in hists.items():
             if h.sum() == 0 or category not in h.axes["category"]:
@@ -81,7 +86,13 @@ def plot_by_process(
             h_proj = h[:, idx_selector, category, :].project(variable)
 
             # --- Blinding Data (MSD only) ---
-            if process == "data" and region != "control-zgamma" and variable == "msd1":
+            is_data_process = "data" in process.lower()
+            if (
+                is_data_process
+                and "zgamma" not in region
+                and "zgcr" not in region
+                and variable == "msd"
+            ):
                 edges = h_proj.axes[0].edges
                 mask = (edges[:-1] >= mass_lo) & (edges[:-1] < mass_hi)
                 data_val = h_proj.values()
@@ -104,24 +115,22 @@ def plot_by_process(
             output_name = f"{outdir}/{year_str}_{region}_{category}_{variable}_process_ptbin{pt_low}_{pt_high}.png"
 
         # --- UPDATED: Region-specific plotting logic with CamelCase keys ---
-        if "control-zgamma" in region:
+        if "zgcr" in region or "zgamma" in region:
             signals = ["Zgamma"]
-            # Order: Bottom to Top in stack
-            bkg_order = ["ttbar", "Wjets", "Zjets", "QCD", "Wgamma", "GJets"]
-            onto = "GJets" # Ratio plot denominator
+            bkg_order = ["ttbar", "Wjets", "Zjets", "QCD", "Wgamma"]
+            onto = "GJets"
         elif "control-tt" in region:
             signals = []
             bkg_order = ["Wjets", "Zjets", "QCD", "singlet", "ttbar"]
             onto = "ttbar"
         else:
-            # Signal Regions
-            signals = ["ggF", "VBF", "VH", "ttH"]
+            signals = ["ggF", "VBF", "WH", "ZH", "ttH"]  # Changed 'VH' to 'WH', 'ZH'
             bkg_order = ["Zjets", "Wjets", "ttbar", "QCD"]
             onto = "QCD"
 
         # Safe fallback if a process is missing from the order list
         existing_bkgs = [b for b in bkg_order if b in histograms_to_plot]
-        
+
         # If 'onto' is missing, pick the largest background
         if onto not in histograms_to_plot:
             if existing_bkgs:
@@ -130,13 +139,21 @@ def plot_by_process(
                 print("    No backgrounds found to plot ratio against.")
                 continue
 
+        data_key = next((k for k in histograms_to_plot if "data" in k.lower()), None)
+        if data_key and data_key != "data":
+            histograms_to_plot["data"] = histograms_to_plot.pop(data_key)
+
+        print(f"DEBUG: Yields in {category}:")
+        for k, v in histograms_to_plot.items():
+            print(f"  - {k}: {v.sum():.2f}")
+
         fig, (ax, rax) = ratio_plot(
             histograms_to_plot,
             sigs=signals,
             bkgs=existing_bkgs,
             onto=onto,
             style=style,
-            sort_by_yield=False, # Respect our custom order
+            sort_by_yield=False,  # Respect our custom order
             legend_title=legend_title,
         )
 
@@ -151,7 +168,7 @@ def plot_by_process(
             year=year_str,
             loc=0,
         )
-
+        print(f"  [SAVING] {output_name}")  # Add this line
         fig.savefig(output_name, dpi=300, bbox_inches="tight")
         plt.close(fig)
 
@@ -183,7 +200,7 @@ def plot_by_flavor(hists, category, year_str, year_list, outdir, region, style, 
             else:
                 h_proj = h[:, i_start, category, :].project(variable)
 
-                if process == "data" and variable == "msd1" and region != "control-zgamma":
+                if process == "data" and variable == "msd" and region != "control-zgamma":
                     edges = h_proj.axes[0].edges
                     mask = (edges[:-1] >= mass_lo) & (edges[:-1] < mass_hi)
                     data_val = h_proj.values()
@@ -193,7 +210,10 @@ def plot_by_flavor(hists, category, year_str, year_list, outdir, region, style, 
 
         # --- UPDATED: Background Order for Flavors ---
         bkg_order = [
-            "ggF", "VBF", "VH", "ttH",
+            "ggF",
+            "VBF",
+            "VH",
+            "ttH",
             "QCD",
             "singlet",
             "ttbar",
@@ -202,7 +222,9 @@ def plot_by_flavor(hists, category, year_str, year_list, outdir, region, style, 
             "Zjets_light-jet",
             "Zjets_c-jet",
             "Zjets_b-jet",
-            "Wgamma", "Zgamma", "GJets"
+            "Wgamma",
+            "Zgamma",
+            "GJets",
         ]
 
         legend_title = f"{category.capitalize()} Region, {pt_low:g} < $p_T$ < {pt_high:g} GeV"
@@ -212,11 +234,17 @@ def plot_by_flavor(hists, category, year_str, year_list, outdir, region, style, 
 
         # Determine ratio denominator
         onto = "QCD"
-        if "control-zgamma" in region: onto = "GJets"
-        elif "control-tt" in region: onto = "ttbar"
-        
+        if "control-zgamma" in region:
+            onto = "GJets"
+        elif "control-tt" in region:
+            onto = "ttbar"
+
         if onto not in histograms_to_plot and existing_bkgs:
-             onto = existing_bkgs[-1]
+            onto = existing_bkgs[-1]
+
+        print(f"DEBUG: Yields in {category}:")
+        for k, v in histograms_to_plot.items():
+            print(f"  - {k}: {v.sum():.2f}")
 
         fig, (ax, rax) = ratio_plot(
             histograms_to_plot,
@@ -280,13 +308,19 @@ def plot_qcd_shapes(hists, year_str, outdir, region, norm_type, variable):
             pass_yield = h_pass.sum()
             fail_yield = h_fail.sum()
             h_fail_scaled = h_fail * (pass_yield / fail_yield)
-            
+
             xlabel_text = h_pass.axes[0].label
-            units = xlabel_text[xlabel_text.find("[") + 1 : xlabel_text.find("]")] if "[" in xlabel_text else ""
+            units = (
+                xlabel_text[xlabel_text.find("[") + 1 : xlabel_text.find("]")]
+                if "[" in xlabel_text
+                else ""
+            )
             ylabel = f"Events / {bin_width:g} {units}"
 
-            hep.histplot(h_fail_scaled/bin_width, ax=ax, label="QCD MC fail", color="blue", yerr=True)
-            hep.histplot(h_pass/bin_width, ax=ax, label="QCD MC pass", color="black", yerr=True)
+            hep.histplot(
+                h_fail_scaled / bin_width, ax=ax, label="QCD MC fail", color="blue", yerr=True
+            )
+            hep.histplot(h_pass / bin_width, ax=ax, label="QCD MC pass", color="black", yerr=True)
 
         ax.set_xlabel(h_pass.axes[0].label)
         ax.set_ylabel(ylabel)
@@ -294,7 +328,9 @@ def plot_qcd_shapes(hists, year_str, outdir, region, norm_type, variable):
         hep.cms.label("Private Work", data=False, ax=ax, com=13.6, year=year_str)
         ax.legend(title=f"{pt_low:g} < $p_T$ < {pt_high:g} GeV", loc="upper right")
 
-        output_name = f"{outdir}/{year_str}_{region}_{variable}_qcd_{norm_type}_ptbin{pt_low}_{pt_high}.png"
+        output_name = (
+            f"{outdir}/{year_str}_{region}_{variable}_qcd_{norm_type}_ptbin{pt_low}_{pt_high}.png"
+        )
         fig.savefig(output_name, dpi=300, bbox_inches="tight")
         plt.close(fig)
 
@@ -323,29 +359,35 @@ def plot_inclusive(
         for i in range(len(pt_axis.edges) - 1):
             pt_low, pt_high = pt_axis.edges[i], pt_axis.edges[i + 1]
             title_label = category_labels.get("inclusive", "Inclusive")
-            h_slice = {p: h[:, pt_axis.index(pt_low), :].project(variable) for p, h in hists_incl.items()}
-            plot_configs.append({
-                "hists": h_slice,
-                "title": f"{title_label}, {pt_low:g} < $p_T$ < {pt_high:g} GeV",
-                "filename": f"{outdir}/{year_str}_{region}_inclusive_{variable}_{stack_by}_ptbin{pt_low}_{pt_high}.png",
-                "pt_slice": i,
-            })
+            h_slice = {
+                p: h[:, pt_axis.index(pt_low), :].project(variable) for p, h in hists_incl.items()
+            }
+            plot_configs.append(
+                {
+                    "hists": h_slice,
+                    "title": f"{title_label}, {pt_low:g} < $p_T$ < {pt_high:g} GeV",
+                    "filename": f"{outdir}/{year_str}_{region}_inclusive_{variable}_{stack_by}_ptbin{pt_low}_{pt_high}.png",
+                    "pt_slice": i,
+                }
+            )
 
     if inclusive_scope in ["pt-inclusive", "all"]:
         title_label = category_labels.get("inclusive", "Inclusive")
         h_slice = {p: h[:, hist.sum, :].project(variable) for p, h in hists_incl.items()}
-        plot_configs.append({
-            "hists": h_slice,
-            "title": f"{title_label} (all $p_T$)",
-            "filename": f"{outdir}/{year_str}_{region}_inclusive_{variable}_{stack_by}_allpt.png",
-            "pt_slice": hist.sum,
-        })
+        plot_configs.append(
+            {
+                "hists": h_slice,
+                "title": f"{title_label} (all $p_T$)",
+                "filename": f"{outdir}/{year_str}_{region}_inclusive_{variable}_{stack_by}_allpt.png",
+                "pt_slice": hist.sum,
+            }
+        )
 
     for config in plot_configs:
         print(f"  Processing: {config['title']}")
         histograms_to_plot = config["hists"]
 
-        if "data" in histograms_to_plot and variable == "msd1" and region != "control-zgamma":
+        if "data" in histograms_to_plot and variable == "msd" and region != "control-zgamma":
             h_proj = histograms_to_plot["data"]
             edges, data_val = h_proj.axes[0].edges, h_proj.values()
             mask = (edges[:-1] >= mass_lo) & (edges[:-1] < mass_hi)
@@ -358,7 +400,9 @@ def plot_inclusive(
                 if process in ["Wjets", "Zjets"]:
                     h_2d = hists_incl[process][:, config["pt_slice"], :]
                     for code, name in flavor_map.items():
-                        flavored_hists[f"{process}_{name}"] = h_2d[:, hist.loc(code)].project(variable)
+                        flavored_hists[f"{process}_{name}"] = h_2d[:, hist.loc(code)].project(
+                            variable
+                        )
                 else:
                     flavored_hists[process] = h
             histograms_to_plot = flavored_hists
@@ -378,14 +422,26 @@ def plot_inclusive(
             onto = "QCD"
 
         if stack_by == "flavor":
-             # Expand bkg_order for flavors... (Same as plot_by_flavor)
-             pass 
+            # Expand bkg_order for flavors... (Same as plot_by_flavor)
+            pass
 
+        # Safe fallback if a process is missing from the order list
         existing_bkgs = [b for b in bkg_order if b in histograms_to_plot]
-        if onto not in histograms_to_plot: 
-            if existing_bkgs: onto = existing_bkgs[-1]
-            else: continue
 
+        # --- FIX: Rename data stream to "data" for ratio_plot handshake ---
+        data_key = next((k for k in histograms_to_plot if "data" in k.lower()), None)
+        if data_key and data_key != "data":
+            histograms_to_plot["data"] = histograms_to_plot.pop(data_key)
+
+        if onto not in histograms_to_plot:
+            if existing_bkgs:
+                onto = existing_bkgs[-1]
+            else:
+                continue
+
+        data_key = next((k for k in histograms_to_plot if "data" in k.lower()), None)
+        if data_key and data_key != "data":
+            histograms_to_plot["data"] = histograms_to_plot.pop(data_key)
         fig, (ax, rax) = ratio_plot(
             histograms_to_plot,
             sigs=signals,
@@ -414,28 +470,42 @@ def plot_inclusive(
 
 # --- Main Function ---
 def main(args):
+    # Initialize dictionaries and strings
     histograms = {}
-    year_str = "all-years" if len(args.year) > 3 else "-".join(args.year)
+    year_str = "all-years" if len(args.year) > 1 else args.year[0]
+
+    # Load the same setup file used for make_hists.py
+    with Path(args.setup).open() as f:
+        setup = json.load(f)
+
+    variable = setup["observable"]["name"]
+    print(f"DEBUG: Projecting along axis name: {variable}")
+    categories_to_plot = list(setup["categories"].keys())
 
     for year in args.year:
-        pkl_path = Path(args.indir) / f"histograms_{args.variable}_{year}_{args.region}.pkl"
-        if not pkl_path.exists():
-            print(f"Error: File not found at {pkl_path}. Skipping.")
-            continue
-        with pkl_path.open("rb") as f:
-            histograms_tmp = pickle.load(f)
+        for region_key in categories_to_plot:
+            pkl_path = Path(args.indir) / f"hists_{year}_{region_key}_{variable}_nominal.pkl"
 
-            print(f"\nLoading {args.variable} histograms for year {year}...")
-            # --- UPDATED: Check for CamelCase keys ---
-            qcd_yield = histograms_tmp.get("QCD", hist.Hist()).sum()
-            data_yield = histograms_tmp.get("data", hist.Hist()).sum()
-            print(f"  Year {year}: Data={data_yield:.2f}, QCD={qcd_yield:.2f}")
+            if not pkl_path.exists():
+                print(f"Error: File not found at {pkl_path}. Skipping.")
+                continue
 
-            for process, h in histograms_tmp.items():
-                if process in histograms:
-                    histograms[process] += h
-                else:
-                    histograms[process] = h
+            with pkl_path.open("rb") as f:
+                histograms_tmp = pickle.load(f)
+
+                # Just for the terminal printout: identify which data stream is present
+                current_data_key = next((k for k in histograms_tmp if "data" in k.lower()), "Data")
+                data_yield = histograms_tmp.get(current_data_key, hist.Hist()).sum()
+                qcd_yield = histograms_tmp.get("QCD", hist.Hist()).sum()
+
+                print(f"\nLoading {variable} histograms for year {year}...")
+                print(f"  Year {year}: Data={data_yield:.2f}, QCD={qcd_yield:.2f}")
+
+                for process, h in histograms_tmp.items():
+                    if process in histograms:
+                        histograms[process] += h
+                    else:
+                        histograms[process] = h
 
     if not histograms:
         print("No histograms were loaded. Exiting.")
@@ -456,33 +526,89 @@ def main(args):
         for category in categories:
             print(f"Plotting {args.variable} by process for {category}...")
             plot_by_process(
-                histograms, category, year_str, args.year, args.outdir, args.region, style, args.variable,
+                histograms,
+                category,
+                year_str,
+                args.year,
+                args.outdir,
+                args.region,
+                style,
+                variable,
                 ptinclusive=(args.inclusive_scope == "pt-inclusive"),
             )
     elif args.plot_type == "flavor":
         for category in categories:
             print(f"Plotting {args.variable} by flavor for {category}...")
             plot_by_flavor(
-                histograms, category, year_str, args.year, args.outdir, args.region, style, args.variable,
+                histograms,
+                category,
+                year_str,
+                args.year,
+                args.outdir,
+                args.region,
+                style,
+                variable,
             )
     elif args.plot_type == "qcd_shape":
-        plot_qcd_shapes(histograms, year_str, args.outdir, args.region, args.norm_type, args.variable)
+        plot_qcd_shapes(
+            histograms, year_str, args.outdir, args.region, args.norm_type, args.variable
+        )
     elif args.plot_type == "inclusive":
         plot_inclusive(
-            histograms, year_str, args.year, args.outdir, args.region, style,
-            args.inclusive_scope, args.stack_by, args.variable
+            histograms,
+            year_str,
+            args.year,
+            args.outdir,
+            args.region,
+            style,
+            args.inclusive_scope,
+            args.stack_by,
+            args.variable,
         )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Unified plotting script for Hbb analysis.")
-    parser.add_argument("--year", help="List of years", type=str, required=True, nargs="+", choices=["2022", "2022EE", "2023", "2023BPix"])
+    parser.add_argument(
+        "--year",
+        help="List of years",
+        type=str,
+        required=True,
+        nargs="+",
+        choices=["2022", "2022EE", "2023", "2023BPix"],
+    )
     parser.add_argument("--indir", help="Input directory for .pkl files", type=str, required=True)
     parser.add_argument("--outdir", help="Output directory for plots", type=str, required=True)
     parser.add_argument("--region", help="Analysis region", type=str, required=True)
-    parser.add_argument("--variable", help="Variable to plot", type=str, default="msd1")
-    parser.add_argument("--stack-by", help="For inclusive plots", type=str, default="process", choices=["process", "flavor"])
-    parser.add_argument("--plot_type", help="Type of plot", type=str, default="process", choices=["process", "flavor", "qcd_shape", "inclusive", "reference"])
-    parser.add_argument("--norm_type", help="QCD shape norm", type=str, default="shape", choices=["shape", "density"])
-    parser.add_argument("--inclusive_scope", help="Scope", type=str, default="pt-binned", choices=["pt-binned", "pt-inclusive"])
+    parser.add_argument("--variable", help="Variable to plot", type=str, default="msd")
+    parser.add_argument("--setup", help="Path to the setup.json file", type=str, required=True)
+    parser.add_argument(
+        "--stack-by",
+        help="For inclusive plots",
+        type=str,
+        default="process",
+        choices=["process", "flavor"],
+    )
+    parser.add_argument(
+        "--plot_type",
+        help="Type of plot",
+        type=str,
+        default="process",
+        choices=["process", "flavor", "qcd_shape", "inclusive", "reference"],
+    )
+    parser.add_argument(
+        "--norm_type",
+        help="QCD shape norm",
+        type=str,
+        default="shape",
+        choices=["shape", "density"],
+    )
+    parser.add_argument(
+        "--inclusive_scope",
+        help="Scope",
+        type=str,
+        default="pt-binned",
+        choices=["pt-binned", "pt-inclusive"],
+    )
     args = parser.parse_args()
     main(args)

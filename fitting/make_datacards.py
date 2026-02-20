@@ -55,7 +55,7 @@ def rhalphabet(args):
 
     # Load Configuration
     json_name = f"setup_{analysis}.json"
-    with open(json_name) as f:
+    with Path(json_name).open() as f:
         config = json.load(f)
 
     # ---------------------------------------------------------
@@ -478,9 +478,8 @@ def rhalphabet(args):
                     ch.addSample(sample)
 
                 # Data
-                data_name = "data_obs" if analysis == "zgcr" else "Jetdata"
                 data_obs = get_template(
-                    infile_path, data_name, region, binindex + 1, cat, msd, syst="nominal"
+                    infile_path, "data_obs", region, binindex + 1, cat, msd, syst="nominal"
                 )
                 ch.setObservation(data_obs[0:3])
 
@@ -541,7 +540,7 @@ def rhalphabet(args):
         if "/" in ch.name:
             continue
         out_cards += f"{ch.name}={ch.name}.txt "
-        with open(f"{modeldir}/{ch.name}.txt", "a") as f:
+        with Path(f"{modeldir}/{ch.name}.txt").open("a") as f:
             f.write("\nqcd_norm rateParam * qcd 1.0 [0,20]\n")
 
     # 1. Get Physics Model Config from JSON
@@ -567,7 +566,7 @@ def rhalphabet(args):
         f.write(f"text2workspace.py {t2w_cfg} model_combined.txt -o workspace.root\n")
         f.write("echo 'Workspace created: workspace.root'\n")
 
-    os.chmod(modeldir / "build.sh", 0o755)
+    (modeldir / "build.sh").chmod(0o755)
 
 
 if __name__ == "__main__":
