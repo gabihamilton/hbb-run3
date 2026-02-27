@@ -24,7 +24,9 @@ REGION_MAP = {
 }
 
 
-def fill_ptbinned_histogram(h, events, region_key, setup, weight_syst="nominal"):
+def fill_binned_histogram(
+    h, events, region_key, setup, bin_branch="FatJet0_pt", weight_syst="nominal"
+):
     for process_name, data in events.items():
         is_data = "data" in process_name.lower()
 
@@ -40,6 +42,9 @@ def fill_ptbinned_histogram(h, events, region_key, setup, weight_syst="nominal")
         var_col = setup["observable"]["branch_name"]
         pt = data["FatJet0_pt"]
         msd = data["FatJet0_msd"]
+
+        # Extract the dynamic binning variable
+        bin_data = data[bin_branch]
 
         # Robust MET extraction from the parquet record
         if "MET" in data.columns:
@@ -92,7 +97,7 @@ def fill_ptbinned_histogram(h, events, region_key, setup, weight_syst="nominal")
             if category in h.axes["category"]:
                 h.fill(
                     var_series[selection],
-                    pt[selection],
+                    bin_data[selection],  # using dynamic bin data here
                     category=category,
                     genflavor=genflavordata[selection],
                     weight=weight_val[selection],
@@ -117,22 +122,23 @@ def export_to_root(histograms, output_root_path, region_key, samples_qq, syst, d
             # and ensure we aren't trying to split the actual data stream
             should_split = any(s in process for s in samples_qq) and "data" not in process.lower()
 
-            for i_pt in range(len(h.axes["pt1"].edges) - 1):
-                pt_bin = f"pt{i_pt+1}"
+            bin_axis = h.axes[1]
+            bin_prefix = bin_axis.name  # e.g., "pt" or "mjj"
+
+            for i_bin in range(len(bin_axis.edges) - 1):
+                # Dynamically construct the bin string, e.g., pt1 or mjj1
+                bin_str = f"{bin_prefix}{i_bin+1}"
                 for category in h.axes["category"]:
-                    # Template: {region}_{category}_{ptBin}_{process}_{suffix}
-                    base = f"{region_key}_{category}_{pt_bin}_{proc_name}"
+                    base = f"{region_key}_{category}_{bin_str}_{proc_name}"
 
                     if should_split:
-                        # Flavor mapping: 3=bb, 2=c, 1=light(uds), 0=light(g)
-                        fout[f"{base}bb_{suffix}"] = h[:, i_pt, category, 3]
-                        fout[f"{base}c_{suffix}"] = h[:, i_pt, category, 2]
+                        fout[f"{base}bb_{suffix}"] = h[:, i_bin, category, 3]
+                        fout[f"{base}c_{suffix}"] = h[:, i_bin, category, 2]
                         fout[f"{base}light_{suffix}"] = (
-                            h[:, i_pt, category, 1] + h[:, i_pt, category, 0]
+                            h[:, i_bin, category, 1] + h[:, i_bin, category, 0]
                         )
                     else:
-                        # For Data or non-split MC, sum over all flavor axes
-                        fout[f"{base}_{suffix}"] = h[:, i_pt, category, sum]
+                        fout[f"{base}_{suffix}"] = h[:, i_bin, category, sum]
 
 
 def main(args):
@@ -147,6 +153,11 @@ def main(args):
         print("=" * 50)
 
         pt_bins = np.array(reg_cfg["bins"])
+
+        # Get dynamic branch and prefix (fallback to pt if not defined in json)
+        bin_branch = reg_cfg.get("bin_branch", "FatJet0_pt")
+        bin_prefix = reg_cfg.get("bin_prefix", "pt")
+
         obs = setup["observable"]
         region_to_load = REGION_MAP.get(region_key, region_key)
 
@@ -180,9 +191,9 @@ def main(args):
         # Initialize a fresh ROOT file
         uproot.recreate(output_root).close()
 
-        # Define Hist Axes
+        # Update the axis_bin initialization for dynamic variable
         axis_var = hist.axis.Regular(obs["nbins"], obs["min"], obs["max"], name=obs["name"])
-        axis_pt = hist.axis.Variable(pt_bins, name="pt1")
+        axis_bin = hist.axis.Variable(pt_bins, name=bin_prefix)  # Replaced axis_pt
         axis_cat = hist.axis.StrCategory(
             ["pass_bb", "pass_cc", "fail", "pass", "inclusive"], name="category"
         )
@@ -208,6 +219,10 @@ def main(args):
                 "Photon110EB_TightID_TightIso",
             ]
 
+        # Ensure the dynamic bin branch is loaded
+        if bin_branch not in cols:
+            cols.append(bin_branch)
+
         for syst in systs_to_run:
             print(f"\n>>> Running Systematic Pass: {syst}")
             is_folder = any(fs in syst for fs in folder_systs)
@@ -220,7 +235,7 @@ def main(args):
                 if process == data_map_key and syst != "nominal":
                     continue
 
-                h = hist.Hist(axis_var, axis_pt, axis_cat, axis_flav)
+                h = hist.Hist(axis_var, axis_bin, axis_cat, axis_flav)
                 for dataset in datasets:
                     events = utils.load_samples(
                         data_dir=Path(
@@ -232,8 +247,14 @@ def main(args):
                         variation=variation,
                     )
                     if events:
-                        h = fill_ptbinned_histogram(
-                            h, events, region_key, setup, syst if not is_folder else "nominal"
+                        # Pass the dynamic branch
+                        h = fill_binned_histogram(
+                            h,
+                            events,
+                            region_key,
+                            setup,
+                            bin_branch=bin_branch,
+                            weight_syst=syst if not is_folder else "nominal",
                         )
                     # Memory management within dataset loop
                     del events

@@ -1,5 +1,5 @@
 {
-    "root_filename": "signalregion.root",
+    "root_filename": "fitting_{year}_signal_msd.root",
     "qcd_proc": "QCD",
     "pt_min_scale": 450.0,
     "regions_to_fit": ["bb", "cc"],
@@ -15,11 +15,23 @@
         "fsr_ggF", "fsr_VBF", "fsr_VH", "fsr_ttH"
     ],
 
-    "observable": { "name": "msd", "min": 40, "max": 201, "nbins": 23 },
+    "samples_qq": ["Wjets", "Zjets", "EWKW", "EWKZ", "EWKV"],
+
+    "observable": {
+        "name": "msd",
+        "branch_name": "FatJet0_msd",
+        "min": 40,
+        "max": 201,
+        "nbins": 23
+    },
 
     "categories": {
         "ggf": { "bins": [450, 1200] },
-        "vbf": { "bins_pt": [450, 1200] },
+        "vbf": {
+            "bins": [1000, 13000],
+            "bin_branch": "VBFPair_mjj",
+            "bin_prefix": "mjj"
+        },
         "vh":  { "bins": [450, 1200] }
     },
 
@@ -28,8 +40,20 @@
         "VBF": { "components": [["VBF", ""]], "is_signal": true },
         "WH":  { "components": [["WH", ""]], "is_signal": true },
         "ZH":  { "components": [["ZH", ""]], "is_signal": true },
+        "ttH": { "components": [["ttH", ""]], "is_signal": true },
         "ttbar": { "components": [["ttbar", ""]], "is_signal": false },
-        "Wjets": { "components": [["Wjets", ""]], "is_signal": false }
+        "singlet": { "components": [["singlet", ""]], "is_signal": false },
+        "VV":    { "components": [["VV", ""]], "is_signal": false },
+
+        "Wjets": { "components": [["Wjets", "bb"], ["Wjets", "c"], ["Wjets", "light"]], "is_signal": false },
+        "EWKW":  { "components": [["EWKW", "bb"], ["EWKW", "c"], ["EWKW", "light"]], "is_signal": false },
+
+        "Zjetsbb": { "components": [["Zjets", "bb"]], "is_signal": false },
+        "Zjetsc":  { "components": [["Zjets", "c"]], "is_signal": false },
+        "Zjetslight": { "components": [["Zjets", "light"]], "is_signal": false },
+        "EWKZbb": { "components": [["EWKZ", "bb"]], "is_signal": false },
+        "EWKZc":  { "components": [["EWKZ", "c"]], "is_signal": false },
+        "EWKZlight": { "components": [["EWKZ", "light"]], "is_signal": false }
     },
 
     "physics_model": {
