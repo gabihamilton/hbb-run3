@@ -276,12 +276,11 @@ def plot_by_flavor(hists, category, year_str, year_list, outdir, region, style, 
 
 
 # --- Function 3: QCD Pass/Fail Shape Comparison ---
-def plot_qcd_shapes(hists, year_str, outdir, region, norm_type, variable):
-    # --- UPDATED: Check for "QCD" (CamelCase) ---
-    if "QCD" not in hists or hists["QCD"].sum() == 0:
-        print("No 'QCD' histogram with entries found. Exiting.")
+def plot_qcd_shapes(hists, year_str, outdir, region, norm_type, variable, qcd_proc):
+    if qcd_proc not in hists or hists[qcd_proc].sum() == 0:
+        print(f"No '{qcd_proc}' histogram with entries found. Exiting.")
         return
-    h_qcd = hists["QCD"]
+    h_qcd = hists[qcd_proc]
     pt_axis = h_qcd.axes["pt1"]
 
     for i in range(len(pt_axis.edges) - 1):
@@ -423,7 +422,23 @@ def plot_inclusive(
 
         if stack_by == "flavor":
             # Expand bkg_order for flavors... (Same as plot_by_flavor)
-            pass
+            bkg_order = [
+                "ggF",
+                "VBF",
+                "VH",
+                "ttH",
+                "QCD",
+                "singlet",
+                "ttbar",
+                "Wjets_light-jet",
+                "Wjets_c-jet",
+                "Zjets_light-jet",
+                "Zjets_c-jet",
+                "Zjets_b-jet",
+                "Wgamma",
+                "Zgamma",
+                "GJets",
+            ]
 
         # Safe fallback if a process is missing from the order list
         existing_bkgs = [b for b in bkg_order if b in histograms_to_plot]
@@ -550,8 +565,9 @@ def main(args):
                 variable,
             )
     elif args.plot_type == "qcd_shape":
+        qcd_proc = setup.get("qcd_proc", "QCD")
         plot_qcd_shapes(
-            histograms, year_str, args.outdir, args.region, args.norm_type, args.variable
+            histograms, year_str, args.outdir, args.region, args.norm_type, args.variable, qcd_proc
         )
     elif args.plot_type == "inclusive":
         plot_inclusive(

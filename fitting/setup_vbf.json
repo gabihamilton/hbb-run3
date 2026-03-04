@@ -8,12 +8,9 @@
     "active_systematics": [
         "pileup", "JES", "JER", "UES",
         "btagSFb", "btagSFc", "btagSFlight",
-        "btagSFb_correlated", "btagSFc_correlated", "btagSFlight_correlated",
-        "pdf_ggF", "pdf_VBF", "pdf_VH", "pdf_ttH",
-        "scale_ggF", "scale_VBF", "scale_VH", "scale_ttH",
-        "isr_ggF", "isr_VBF", "isr_VH", "isr_ttH",
-        "fsr_ggF", "fsr_VBF", "fsr_VH", "fsr_ttH"
+        "btagSFb_correlated", "btagSFc_correlated", "btagSFlight_correlated"
     ],
+
 
     "samples_qq": ["Wjets", "Zjets", "EWKW", "EWKZ", "EWKV"],
 
@@ -25,10 +22,11 @@
         "nbins": 23
     },
 
-    "categories": {
+"categories": {
         "ggf": { "bins": [450, 1200] },
         "vbf": {
             "bins": [1000, 13000],
+            "bins_pt": [450, 1200],
             "bin_branch": "VBFPair_mjj",
             "bin_prefix": "mjj"
         },

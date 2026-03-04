@@ -103,9 +103,9 @@ def rhalphabet(args):
             "UES": rl.NuisanceParameter(f"CMS_ues_j_{year}", "lnN"),
             "MuonPTScale": rl.NuisanceParameter(f"CMS_scale_m_{year}", "lnN"),
             "MuonPTRes": rl.NuisanceParameter(f"CMS_res_m_{year}", "lnN"),
-            f"btagSFb_{year}": rl.NuisanceParameter(f"CMS_btagSFb_{year}", "lnN"),
-            f"btagSFc_{year}": rl.NuisanceParameter(f"CMS_btagSFc_{year}", "lnN"),
-            f"btagSFlight_{year}": rl.NuisanceParameter(f"CMS_btagSFlight_{year}", "lnN"),
+            "btagSFb": rl.NuisanceParameter(f"CMS_btagSFb_{year}", "lnN"),
+            "btagSFc": rl.NuisanceParameter(f"CMS_btagSFc_{year}", "lnN"),
+            "btagSFlight": rl.NuisanceParameter(f"CMS_btagSFlight_{year}", "lnN"),
             "btagSFb_correlated": rl.NuisanceParameter(f"CMS_btagSFb_correlated_{year}", "lnN"),
             "btagSFc_correlated": rl.NuisanceParameter(f"CMS_btagSFc_correlated_{year}", "lnN"),
             "btagSFlight_correlated": rl.NuisanceParameter(
@@ -367,13 +367,20 @@ def rhalphabet(args):
 
                     if do_systematics:
                         # 1. Automatic MC Statistical Uncertainties (Barlow-Beeston Lite)
-                        sample.autoMCStats(lnN=True)
+                        # (Already handled inside add_systematics in card_utils.py)
 
                         # 2. Experimental Systematics (Shapes from ROOT file)
+                        # Filter out theory systematics so they aren't double-applied
+                        exp_syst_map = {
+                            k: v
+                            for k, v in syst_map.items()
+                            if not k.startswith(("pdf_", "scale_", "isr_", "fsr_"))
+                        }
+
                         add_systematics(
                             sample,
                             nominal,
-                            syst_map,
+                            exp_syst_map,
                             infile_path,
                             year,
                             info["components"],

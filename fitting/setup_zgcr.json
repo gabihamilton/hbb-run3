@@ -19,7 +19,9 @@
     "categories": {
         "zgcr": {
             "name": "control-zgamma",
-            "bins": [250, 1200]
+            "bins": [250, 1200],
+            "bin_branch": "FatJet0_pt",
+            "bin_prefix": "pt"
         }
     },
 
