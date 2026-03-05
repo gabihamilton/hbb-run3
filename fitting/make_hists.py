@@ -69,16 +69,19 @@ def fill_binned_histogram(
         obs_min, obs_max = setup["observable"]["min"], setup["observable"]["max"]
         basic_cuts = (msd > obs_min) & (msd < obs_max)
 
+        # Pull the pt cut directly from the JSON
+        pt_min = setup.get("pt_min_scale", 450.0)
+
         actual_reg_name = REGION_MAP.get(region_key, region_key)
 
         if "zgamma" in actual_reg_name:
             # Specific Z-Gamma logic from Gabi's script
             trigger = data["Photon200"] | data["Photon110EB_TightID_TightIso"]
             topo_cuts = (dphi > 2.2) & (met_pt < 50) & (data["Photon0_pt"] > 120)
-            pre_selection = basic_cuts & topo_cuts & trigger & (pt > 250)
+            pre_selection = basic_cuts & topo_cuts & trigger & (pt > pt_min)
         else:
             # Lara's Signal Region logic
-            pre_selection = basic_cuts & (pt > 450)
+            pre_selection = basic_cuts & (pt > pt_min)
 
         Txcc = data["FatJet0_ParTPXccVsQCD"]
         Txbb = data["FatJet0_ParTPXbbVsQCD"]

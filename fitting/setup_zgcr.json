@@ -28,10 +28,11 @@
     "process_groups": {
         "zgammabb": { "components": [["Zgamma", "bb"], ["Zjets", "bb"]], "is_signal": true },
         "zgammacc": { "components": [["Zgamma", "c"], ["Zjets", "c"]], "is_signal": true },
-        "wgammabb": { "components": [["Wgamma", "bb"], ["Wjets", "bb"]], "is_signal": false },
-        "wgammacc": { "components": [["Wgamma", "c"], ["Wjets", "c"]], "is_signal": false },
+        "wgammacs": { "components": [["Wgamma", "c"], ["Wjets", "c"]], "is_signal": false },
         "other": {
             "components": [
+                ["Wgamma", "bb"],
+                ["Wjets", "bb"],
                 ["Zgamma", "light"],
                 ["Wgamma", "light"],
                 ["Zjets", "light"],
@@ -41,6 +42,7 @@
             "is_signal": false
         }
     },
+
     "physics_model": {
         "model": "HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel",
         "maps": [
