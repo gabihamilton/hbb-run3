@@ -2,7 +2,7 @@
 Datacard Utilities - common helper functions for reading templates,
 merging histograms, and making transfer factor plots.
 
-Author(s): Gabi Hamilton, Lara Mason, Cristina Mantilla
+Author(s): Gabi Hamilton, Lara Zygala, Cristina Mantilla
 Date: Feb 2026
 """
 

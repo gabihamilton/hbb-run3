@@ -44,7 +44,7 @@ def rhalphabet(args):
     print(f"Running Card Maker for {year} (Analysis: {analysis})")
 
     # Define Paths
-    working_dir = Path(f"results/{tag}/{year}")
+    working_dir = Path(f"{args.outdir}/{tag}/{year}")
     datacard_dir = working_dir / "datacards"
     initvals_dir = working_dir / "initial_vals"
 
@@ -581,6 +581,9 @@ if __name__ == "__main__":
     parser.add_argument("--year", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--indir", default=None)
+    parser.add_argument(
+        "--outdir", default="results", help="Output directory for datacards and plots"
+    )
     parser.add_argument("--analysis", required=True)
     parser.add_argument("--mc-rho-order", type=int, default=1)
     parser.add_argument("--mc-pt-order", type=int, default=0)

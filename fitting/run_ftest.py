@@ -1,3 +1,14 @@
+"""
+Combine F-Test Runner
+
+Automates the Combine commands required to perform an F-test between two
+competing workspace models (a 'Null' simpler model and an 'Alt' complex model).
+Generates snapshots, computes the observed Goodness-of-Fit (saturated algorithm),
+and generates/fits pseudo-experiments (toys) to evaluate the models.
+
+Gabi Hamilton - Feb 2026
+"""
+
 from __future__ import annotations
 
 import argparse

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Plotting script adapted for new make_histos.py output (CamelCase keys).
+Plotting script adapted for new make_hists.py output.
+
+Gabi Hamilton - Feb 2026
 """
 from __future__ import annotations
 
