@@ -28,7 +28,7 @@ python make_hists.py \
 python make_hists.py \
     --year 2022EE \
     --tag 26Feb03 \
-    --setup setup_vbf.json \
+    --setup setup_sr.json \
     --outdir results \
     --save-root
 ```

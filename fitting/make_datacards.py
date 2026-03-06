@@ -355,6 +355,9 @@ def rhalphabet(args):
                     nominal = templ[0]
 
                     if badtemplate(nominal):
+                        print(
+                            f"Warning: Skipping template for {proc_name} in {ch_name} (failed badtemplate check)"
+                        )
                         continue
 
                     stype = rl.Sample.SIGNAL if info["is_signal"] else rl.Sample.BACKGROUND
