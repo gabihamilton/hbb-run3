@@ -72,7 +72,7 @@ def fill_binned_histogram(
         )
 
         # --- 3. SELECTION LOGIC ---
-        working_point = setup.get("working_point", 0.95)
+        working_point = setup.get("working_point", 0.82)
         obs_min, obs_max = setup["observable"]["min"], setup["observable"]["max"]
         basic_cuts = (msd > obs_min) & (msd < obs_max)
 
@@ -144,9 +144,7 @@ def export_to_root(histograms, output_root_path, region_key, samples_qq, syst, d
                     if should_split:
                         fout[f"{base}bb_{suffix}"] = h[:, i_bin, category, 3]
                         fout[f"{base}c_{suffix}"] = h[:, i_bin, category, 2]
-                        fout[f"{base}light_{suffix}"] = (
-                            h[:, i_bin, category, 1] + h[:, i_bin, category, 0]
-                        )
+                        fout[f"{base}light_{suffix}"] = h[:, i_bin, category, 1]    #1 = uds
                     else:
                         fout[f"{base}_{suffix}"] = h[:, i_bin, category, sum]
 
@@ -232,6 +230,10 @@ def main(args):
         # Ensure the dynamic bin branch is loaded
         if bin_branch not in cols:
             cols.append(bin_branch)
+
+        obs_branch = setup["observable"]["branch_name"]
+        if obs_branch not in cols:
+            cols.append(obs_branch)
 
         for syst in systs_to_run:
             print(f"\n>>> Running Systematic Pass: {syst}")
