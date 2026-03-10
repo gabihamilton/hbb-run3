@@ -23,6 +23,7 @@ from card_utils import (
     get_merged_template,
     get_template,
     plot_mctf,
+    one_bin
 )
 
 from hbb.common_vars import LUMI
@@ -32,6 +33,7 @@ warnings.filterwarnings("ignore")
 rl.util.install_roofit_helpers()
 
 lumi_err = {"2022": 1.01, "2023": 1.02}
+eps = 0.001 
 
 
 def rhalphabet(args):
@@ -87,6 +89,14 @@ def rhalphabet(args):
 
     cats_cfg = config["categories"]
     cats = list(cats_cfg.keys())
+    cats.remove("mucr") #necessary since all categories get the same treatment
+
+    # TT Independent Parameters
+    tqqeffSF = rl.IndependentParameter(f'tqqeffSF_{year}', 1., -50, 50)
+    tqqeffBCSF = rl.IndependentParameter(f'tqqeffBCSF_{year}', 1., -50, 50)
+    tqqnormSF = rl.IndependentParameter(f'tqqnormSF_{year}', 1., -50, 50)
+
+    do_muon_CR = False
 
     # Standard Luminosity Uncertainty
     sys_lumi_uncor = rl.NuisanceParameter(f"CMS_lumi_13TeV_{year[:4]}", "lnN")
@@ -536,12 +546,145 @@ def rhalphabet(args):
                 )
                 passCh.addSample(pass_qcd)
 
+            if do_muon_CR:
+                passChbb = model[f"ptbin{ptbin}{cat}passbb{year}"]
+                passChcc = model[f"ptbin{ptbin}{cat}passcc{year}"]
+                
+                tqqpassbb = passChbb['ttbar']
+                tqqpasscc = passChcc['ttbar']
+                tqqfail = failCh['ttbar']
+
+                sumPass = tqqpassbb.getExpectation(nominal=True).sum() + tqqpasscc.getExpectation(nominal=True).sum()
+                sumFail = tqqfail.getExpectation(nominal=True).sum()
+
+                sumPassbb = tqqpassbb.getExpectation(nominal=True).sum()
+                sumPasscc = tqqpasscc.getExpectation(nominal=True).sum()
+
+                if 'singlet' in passCh.samples:
+                    stqqpassbb = passChbb['singlet']
+                    stqqpasscc = passChcc['singlet']
+                    stqqfail = failCh['singlet']
+                    
+                    sumPass += stqqpassbb.getExpectation(nominal=True).sum()
+                    sumPass += stqqpasscc.getExpectation(nominal=True).sum()
+
+                    sumPassbb += stqqpassbb.getExpectation(nominal=True).sum()
+                    sumPasscc += stqqpasscc.getExpectation(nominal=True).sum()
+
+                    sumFail += stqqfail.getExpectation(nominal=True).sum()
+                    
+                    tqqPF =  sumPass / sumFail
+                    tqqBC = sumPassbb / sumPasscc
+                    
+                    stqqpassbb.setParamEffect(tqqeffSF, 1 * tqqeffSF)
+                    stqqpasscc.setParamEffect(tqqeffSF, 1 * tqqeffSF)
+                    stqqfail.setParamEffect(tqqeffSF, (1 - tqqeffSF) * tqqPF + 1)
+
+                    stqqpassbb.setParamEffect(tqqeffBCSF, 1 * tqqeffBCSF)
+                    stqqpasscc.setParamEffect(tqqeffBCSF, (1 - tqqeffBCSF) * tqqBC + 1)
+
+                    stqqpassbb.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+                    stqqpasscc.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+                    stqqfail.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+
+
+                tqqPF =  sumPass / sumFail
+                tqqBC = sumPassbb / sumPasscc
+
+                tqqpassbb.setParamEffect(tqqeffSF, 1 * tqqeffSF)
+                tqqpasscc.setParamEffect(tqqeffSF, 1 * tqqeffSF)
+                tqqfail.setParamEffect(tqqeffSF, (1 - tqqeffSF) * tqqPF + 1)
+
+                tqqpassbb.setParamEffect(tqqeffBCSF, 1 * tqqeffBCSF)
+                tqqpasscc.setParamEffect(tqqeffBCSF, (1 - tqqeffBCSF) * tqqBC + 1)
+
+                tqqpassbb.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+                tqqpasscc.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+                tqqfail.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+
+    muonCR_model = rl.Model('muonCR_'+year)
+    if do_muon_CR:
+        templates = {}
+        samps = ['QCD','ttbar','singlet','Wjets','Zjetsc','Zjetslight','Zjetsbb']
+        for region in ['pass_bb_', 'pass_cc_', 'fail_']:
+
+            ch_name = 'muonCR%s%s' % (region.replace("_", ""), year)
+
+            ch = rl.Channel(ch_name)
+            muonCR_model.addChannel(ch)
+            for sName in samps:
+                templates[sName] = one_bin(infile_path, sName, region, 1, 'mucr_', syst='nominal')
+                nominal = templates[sName][0]
+
+                if nominal < eps:
+                    print("Sample {} is too small, skipping".format(sName))
+                    continue
+
+                stype = rl.Sample.BACKGROUND
+                sample = rl.TemplateSample(ch.name + '_' + sName, stype, templates[sName])
+
+                sample.setParamEffect(sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2023"]))
+                if do_systematics:
+
+                    sample.autoMCStats(lnN=True) 
+
+                ch.addSample(sample)
+                
+            data_obs = one_bin(infile_path, 'Muondata', region, 1, 'mucr_', syst='nominal')
+            ch.setObservation(data_obs, read_sumw2=True)
+
+        tqqpassbb = muonCR_model['muonCRpassbb'+year+'_ttbar']
+        tqqpasscc = muonCR_model['muonCRpasscc'+year+'_ttbar']
+        tqqfail = muonCR_model['muonCRfail'+year+'_ttbar']
+
+        sumPass = tqqpassbb.getExpectation(nominal=True).sum() + tqqpasscc.getExpectation(nominal=True).sum()
+        sumPassbb = tqqpassbb.getExpectation(nominal=True).sum()
+        sumPasscc = tqqpasscc.getExpectation(nominal=True).sum()
+        sumFail = tqqfail.getExpectation(nominal=True).sum()
+
+        stqqpassbb = muonCR_model['muonCRpassbb'+year+'_singlet']
+        stqqpasscc = muonCR_model['muonCRpasscc'+year+'_singlet']
+        stqqfail = muonCR_model['muonCRfail'+year+'_singlet']
+
+        sumPass += stqqpassbb.getExpectation(nominal=True).sum()
+        sumPass += stqqpasscc.getExpectation(nominal=True).sum()
+
+        sumPassbb += stqqpassbb.getExpectation(nominal=True).sum()
+        sumPasscc += stqqpasscc.getExpectation(nominal=True).sum()
+        sumFail += stqqfail.getExpectation(nominal=True).sum()
+
+        tqqPF =  sumPass / sumFail
+        tqqBC = sumPassbb / sumPasscc
+
+        tqqpassbb.setParamEffect(tqqeffSF, 1 * tqqeffSF)
+        tqqpasscc.setParamEffect(tqqeffSF, 1 * tqqeffSF)
+        tqqfail.setParamEffect(tqqeffSF, (1 - tqqeffSF) * tqqPF + 1)
+
+        tqqpassbb.setParamEffect(tqqeffBCSF, 1 * tqqeffBCSF)
+        tqqpasscc.setParamEffect(tqqeffBCSF, (1 - tqqeffBCSF) * tqqBC + 1)
+
+        tqqpassbb.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+        tqqpasscc.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+        tqqfail.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+
+        stqqpassbb.setParamEffect(tqqeffSF, 1 * tqqeffSF)
+        stqqpasscc.setParamEffect(tqqeffSF, 1 * tqqeffSF)
+        stqqfail.setParamEffect(tqqeffSF, (1 - tqqeffSF) * tqqPF + 1)
+
+        stqqpassbb.setParamEffect(tqqeffBCSF, 1 * tqqeffBCSF)
+        stqqpasscc.setParamEffect(tqqeffBCSF, (1 - tqqeffBCSF) * tqqBC + 1)
+
+        stqqpassbb.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+        stqqpasscc.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+        stqqfail.setParamEffect(tqqnormSF, 1 * tqqnormSF)
+
     # ---------------------------------------------------------
     # 7. SAVE & RENDER
     # ---------------------------------------------------------
     with (datacard_dir / f"{analysis}Model_{year}.pkl").open("wb") as fout:
         pickle.dump(model, fout)
     modeldir = datacard_dir / f"{analysis}Model_{year}"
+    muonCR_model.renderCombine(modeldir)
     model.renderCombine(modeldir)
     print(f"Datacards saved to {modeldir}")
 
@@ -552,6 +695,11 @@ def rhalphabet(args):
         out_cards += f"{ch.name}={ch.name}.txt "
         with Path(f"{modeldir}/{ch.name}.txt").open("a") as f:
             f.write("\nqcd_norm rateParam * qcd 1.0 [0,20]\n")
+    if do_muon_CR:
+        for ch in muonCR_model:
+            if "/" in ch.name:
+                continue
+            out_cards += f"{ch.name}={ch.name}.txt "
 
     # 1. Get Physics Model Config from JSON
     # Default to simple signal strength 'r' if missing
