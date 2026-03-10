@@ -24,6 +24,7 @@ python make_hists.py \
     --save-root
 ```
 ### For the signal region (VBF, ggF and VH):
+In order to plot the BDT sorted signal regions, set do_BDT_regions = true in setup_sr.json
 ```
 python make_hists.py \
     --year 2022EE \
