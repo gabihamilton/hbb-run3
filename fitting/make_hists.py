@@ -154,6 +154,8 @@ def main(args):
         setup = json.load(f)
     with Path("pmap_run3.json").open() as f:
         pmap = json.load(f)
+        
+    do_BDT_regions = setup.get("do_BDT_regions", False)
 
     for region_key, reg_cfg in setup["categories"].items():
         print("\n" + "=" * 50)
@@ -168,6 +170,8 @@ def main(args):
 
         obs = setup["observable"]
         region_to_load = REGION_MAP.get(region_key, region_key)
+        if do_BDT_regions and not "control" in region_to_load:
+            region_to_load = region_to_load + "-BDT"
 
         # Determine Data Stream (e.g., EGammadata for zgamma)
         if "zgamma" in region_to_load:
