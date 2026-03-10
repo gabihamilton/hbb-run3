@@ -96,7 +96,7 @@ def rhalphabet(args):
     tqqeffBCSF = rl.IndependentParameter(f'tqqeffBCSF_{year}', 1., -50, 50)
     tqqnormSF = rl.IndependentParameter(f'tqqnormSF_{year}', 1., -50, 50)
 
-    do_muon_CR = False
+    do_muon_CR = config.get("do_muon_CR", False)
 
     # Standard Luminosity Uncertainty
     sys_lumi_uncor = rl.NuisanceParameter(f"CMS_lumi_13TeV_{year[:4]}", "lnN")
