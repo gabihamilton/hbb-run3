@@ -4,7 +4,7 @@
     "pt_min_scale": 450.0,
     "regions_to_fit": ["bb", "cc"],
     "rho_scaling_max": -2.1,
-    "do_systematics": true,
+    "do_systematics": false,
     "active_systematics": [
         "pileup", "JES", "JER", "UES",
         "btagSFb", "btagSFc", "btagSFlight",
@@ -16,7 +16,7 @@
 
     "observable": {
         "name": "msd",
-        "branch_name": "FatJet0_msd",
+        "branch_name": "FatJet0_msdmatched",
         "min": 40,
         "max": 201,
         "nbins": 23
@@ -30,7 +30,8 @@
             "bin_branch": "VBFPair_mjj",
             "bin_prefix": "mjj"
         },
-        "vh":  { "bins": [450, 1200] }
+        "vh":  { "bins": [450, 1200] },
+        "mucr":  { "bins": [450, 1200] }
     },
 
     "process_groups": {
@@ -38,13 +39,13 @@
         "VBF": { "components": [["VBF", ""]], "is_signal": true },
         "WH":  { "components": [["WH", ""]], "is_signal": true },
         "ZH":  { "components": [["ZH", ""]], "is_signal": true },
-        "ttH": { "components": [["ttH", ""]], "is_signal": true },
+        "ttH": { "components": [["ttH", ""]], "is_signal": false },
         "ttbar": { "components": [["ttbar", ""]], "is_signal": false },
         "singlet": { "components": [["singlet", ""]], "is_signal": false },
         "VV":    { "components": [["VV", ""]], "is_signal": false },
 
-        "Wjets": { "components": [["Wjets", "bb"], ["Wjets", "c"], ["Wjets", "light"]], "is_signal": false },
-        "EWKW":  { "components": [["EWKW", "bb"], ["EWKW", "c"], ["EWKW", "light"]], "is_signal": false },
+        "Wjets": { "components": [["Wjets", "c"], ["Wjets", "light"]], "is_signal": false },
+        "EWKW":  { "components": [["EWKW", "c"], ["EWKW", "light"]], "is_signal": false },
 
         "Zjetsbb": { "components": [["Zjets", "bb"]], "is_signal": false },
         "Zjetsc":  { "components": [["Zjets", "c"]], "is_signal": false },
