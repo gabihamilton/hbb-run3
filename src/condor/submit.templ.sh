@@ -18,7 +18,8 @@ done
 (
     r=3
     # shallow clone of single branch (keep repo size as small as possible)
-    while ! git clone --single-branch --branch $branch --depth=1 https://github.com/DAZSLE/hbb-run3.git
+    while ! git clone --single-branch --branch $branch --depth=1 https://github.com/gabihamilton/hbb-run3.git
+    #while ! git clone --single-branch --branch $branch --depth=1 https://github.com/DAZSLE/hbb-run3.git
     do
         ((--r)) || exit
         sleep 60
@@ -31,6 +32,7 @@ echo "https://github.com/DAZSLE/hbb-run3/commit/$${commithash}" > commithash.txt
 
 pip install -e .
 pip install xgboost
+python3 -m pip install --user "tritonclient[grpc]"
 
 # run code
 if [[ $BDT == True ]]; then
