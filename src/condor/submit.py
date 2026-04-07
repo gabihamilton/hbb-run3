@@ -32,7 +32,7 @@ def write_template(templ_file: str, out_file: str, templ_args: dict):
 
 def main(args):
     # check that branch exists
-    run_utils.check_branch(args.git_branch, args.allow_diff_local_repo)
+    # run_utils.check_branch(args.git_branch, args.allow_diff_local_repo)
 
     if args.site == "lpc":
         try:
@@ -55,7 +55,7 @@ def main(args):
     tag = f"{args.tag}_{args.nano_version}"
 
     # make eos dir
-    pdir = Path(f"store/user/lpchbbrun3/{username}/")
+    pdir = Path(f"store/group/lpchbbrun3/{username}/")
     outdir = pdir / tag
 
     # make local directory
@@ -109,7 +109,7 @@ def main(args):
                     "jobnum": j,
                     "nano_version": args.nano_version,
                     "run_mode": args.run_mode,
-                    "BDT": args.BDT
+                    "BDT": args.BDT,
                 }
                 write_template(sh_templ, localsh, sh_args)
                 os.system(f"chmod u+x {localsh}")

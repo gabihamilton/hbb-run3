@@ -32,7 +32,7 @@ echo "https://github.com/DAZSLE/hbb-run3/commit/$${commithash}" > commithash.txt
 pip install -e .
 pip install xgboost
 
-# run code 
+# run code
 if [[ $BDT == True ]]; then
     python -u -W ignore $script --BDT --year $year --starti $starti --endi $endi --samples $sample --subsamples $subsample --nano-version ${nano_version} --${run_mode}
     echo "BDT option enabled!"
