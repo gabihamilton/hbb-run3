@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from rucio.client import Client
 
-os.environ["RUCIO_HOME"] = "/cvmfs/cms.cern.ch/rucio/x86_64/rhel7/py3/current"
+os.environ["RUCIO_HOME"] = "/cvmfs/cms.cern.ch/rucio/x86_64/rhel9/py3/current"
 
 """
 From https://github.com/PocketCoffea/PocketCoffea
@@ -149,9 +149,25 @@ def get_dataset_files(
                 )
                 if request_replica:
                     print("Will request replica")
-                    os.system(
-                        f"rucio add-rule 'cms:{dataset}' 1 T1_US_FNAL_Disk --activity 'User AutoApprove' --lifetime 14000000 --ask-approval --comment ''"
-                    )
+                    # os.system(
+                    #    f"rucio add-rule 'cms:{dataset}' 1 T1_US_FNAL_Disk --activity 'User AutoApprove' --lifetime 14000000 --ask-approval --comment ''"
+                    try:
+                        client.add_replication_rule(
+                            dids=[{"scope": "cms", "name": dataset}],
+                            copies=1,
+                            rse_expression="T1_US_FNAL_Disk",
+                            lifetime=14000000,
+                            activity="User AutoApprove",
+                            ask_approval=True,
+                            comment="",
+                        )
+                        print("Replica requested successfully.")
+                    except Exception as e:
+                        if "DuplicateRule" in str(type(e)):
+                            print(f"Rule already exists for {dataset}. Moving on.")
+                        else:
+                            # If it's a different error, we still want to know about it!
+                            print(f"Failed to request replica for {dataset}: {e}")
                 break
         else:
             possible_sites = list(rses.keys())
