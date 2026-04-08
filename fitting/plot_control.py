@@ -136,6 +136,7 @@ def plot_by_process(
 
         # Safe fallback if a process is missing from the order list
         existing_bkgs = [b for b in bkg_order if b in histograms_to_plot]
+        signals = [s for s in signals if s in histograms_to_plot]
 
         # If 'onto' is missing, pick the largest background
         if onto not in histograms_to_plot:
@@ -454,6 +455,7 @@ def plot_inclusive(
 
         # Safe fallback if a process is missing from the order list
         existing_bkgs = [b for b in bkg_order if b in histograms_to_plot]
+        signals = [s for s in signals if s in histograms_to_plot]
 
         # --- FIX: Rename data stream to "data" for ratio_plot handshake ---
         data_key = next((k for k in histograms_to_plot if "data" in k.lower()), None)
