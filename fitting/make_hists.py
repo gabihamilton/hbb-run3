@@ -67,9 +67,9 @@ def fill_binned_histogram(
 
         var_series = dphi if var_col == "delta_phi_photon_jet" else data[var_col]
 
-        is_mc = "GenFlavor" in data.columns
+        is_mc = "GenFlavor" in data.columns and data["GenFlavor"].notna().any()
         genflavordata = (
-            data["GenFlavor"].astype(np.int8) if is_mc else np.zeros(len(data), dtype=np.int8)
+            data["GenFlavor"].fillna(0).astype(np.int8) if is_mc else np.zeros(len(data), dtype=np.int8)
         )
 
         # --- 3. SELECTION LOGIC ---
