@@ -265,7 +265,7 @@ def main(args):
                 for dataset in datasets:
                     events = utils.load_samples(
                         data_dir=Path(
-                            f"/eos/uscms/store/group/lpchbbrun3/skims/{args.tag}/{args.year}"
+                            f"{args.skim_base}/{args.tag}/{args.year}"
                         ),
                         samples={process: [dataset]},
                         columns=cols,
@@ -319,6 +319,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Unified Histogram Maker for Signal and CR")
     parser.add_argument("--year", required=True, choices=["2022", "2022EE", "2023", "2023BPix", "2024"])
     parser.add_argument("--tag", required=True, help="Tag for the skims directory (e.g., 26Feb03)")
+    parser.add_argument(
+        "--skim-base",
+        default="/eos/uscms/store/group/lpchbbrun3/skims",
+        help="Base EOS directory containing skim tags (default: shared skims area)",
+    )
     parser.add_argument("--setup", required=True, help="Path to setup.json file")
     parser.add_argument("--outdir", default="results", help="Directory to save ROOT files")
     parser.add_argument("--save-root", action="store_true", help="Actually write the ROOT file")
