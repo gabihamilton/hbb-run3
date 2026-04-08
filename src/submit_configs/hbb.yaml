@@ -153,7 +153,7 @@
       VBFHto2C_M-125,
       WminusH_Hto2C_Wto2Q_M-125,
       WplusH_Hto2C_Wto2Q_M-125,
-      ZH_Hto2C_Zto2Q_M-125,
+      #ZH_Hto2C_Zto2Q_M-125,
       ggZH_Hto2C_Zto2Q_M-125,
       ttHto2C_M-125,
     ], "files_per_job": 15, },
