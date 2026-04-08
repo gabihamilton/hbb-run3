@@ -73,6 +73,7 @@
     ],
     "VBF": [
         "VBFHto2B_M-125_dipoleRecoilOn",
+        "VBFHto2B_M-125",
         "VBFHto2C_M-125"
     ],
     "WH": [
@@ -163,7 +164,17 @@
         "WtoLNu-4Jets_1J",
         "WtoLNu-4Jets_2J",
         "WtoLNu-4Jets_3J",
-        "WtoLNu-4Jets_4J"
+        "WtoLNu-4Jets_4J",
+        "WtoLNu-2Jets_Bin-1J-PTLNu-40to100",
+        "WtoLNu-2Jets_Bin-1J-PTLNu-100to200",
+        "WtoLNu-2Jets_Bin-1J-PTLNu-200to400",
+        "WtoLNu-2Jets_Bin-1J-PTLNu-400to600",
+        "WtoLNu-2Jets_Bin-1J-PTLNu-600",
+        "WtoLNu-2Jets_Bin-2J-PTLNu-40to100",
+        "WtoLNu-2Jets_Bin-2J-PTLNu-100to200",
+        "WtoLNu-2Jets_Bin-2J-PTLNu-200to400",
+        "WtoLNu-2Jets_Bin-2J-PTLNu-400to600",
+        "WtoLNu-2Jets_Bin-2J-PTLNu-600"
     ],
     "Zjets": [
         "Zto2Q-2Jets_PTQQ-100to200_1J",
@@ -191,7 +202,15 @@
         "DYto2L-4Jets_MLL-50_1J",
         "DYto2L-4Jets_MLL-50_2J",
         "DYto2L-4Jets_MLL-50_3J",
-        "DYto2L-4Jets_MLL-50_4J"
+        "DYto2L-4Jets_MLL-50_4J",
+        "DYto2L-2Jets_MLL-50_PTLL-100to200_1J",
+        "DYto2L-2Jets_MLL-50_PTLL-200to400_1J",
+        "DYto2L-2Jets_MLL-50_PTLL-400to600_1J",
+        "DYto2L-2Jets_MLL-50_PTLL-600_1J",
+        "DYto2L-2Jets_MLL-50_PTLL-100to200_2J",
+        "DYto2L-2Jets_MLL-50_PTLL-200to400_2J",
+        "DYto2L-2Jets_MLL-50_PTLL-400to600_2J",
+        "DYto2L-2Jets_MLL-50_PTLL-600_2J"
     ],
     "Wgamma": [
         "WGtoLNuG-1Jets_PTG-100to200",
@@ -202,7 +221,17 @@
         "WGto2QG-1Jets_PTG200",
         "WGtoLNuG-1Jets_PTG-10to100",
         "WGto2QG-1Jets_PTG-100to200",
-        "WGto2QG-1Jets_PTG-200"
+        "WGto2QG-1Jets_PTG-200",
+        "WGto2QG-1Jets_Bin-PTG-100",
+        "WGto2QG-1Jets_Bin-PTG-200",
+        "WGto2QG-1Jets_Bin-PTG-400",
+        "WGto2QG-1Jets_Bin-PTG-600",
+        "WGto2QG-1Jets",
+        "WGtoLNuG-1Jets_Bin-PTG-100",
+        "WGtoLNuG-1Jets_Bin-PTG-200",
+        "WGtoLNuG-1Jets_Bin-PTG-400",
+        "WGtoLNuG-1Jets_Bin-PTG-600",
+        "WGtoLNuG-1Jets"
     ],
     "Zgamma": [
         "ZGto2NuG-1Jets_PTG-400to600",
@@ -211,7 +240,16 @@
         "ZGto2NuG-1Jets_PTG-600",
         "ZGto2QG-1Jets_PTG-100to200",
         "ZGto2QG-1Jets_PTG-200",
-        "ZGto2NuG-1Jets_PTG-10to100"
+        "ZGto2NuG-1Jets_PTG-10to100",
+        "ZGto2QG-1Jets_Bin-PTG-100",
+        "ZGto2QG-1Jets_Bin-PTG-200",
+        "ZGto2QG-1Jets_Bin-PTG-400",
+        "ZGto2QG-1Jets_Bin-PTG-600",
+        "ZGto2QG-1Jets",
+        "DYGto2LG-1Jets_Bin-MLL-50-PTG-100",
+        "DYGto2LG-1Jets_Bin-MLL-50-PTG-200",
+        "DYGto2LG-1Jets_Bin-MLL-50-PTG-400",
+        "DYGto2LG-1Jets_Bin-MLL-50-PTG-600"
     ],
     "TTGamma": [
         "TTG-1Jets_PTG-10to100",
