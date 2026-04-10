@@ -123,8 +123,8 @@ def plot_by_process(
             onto = "GJets"
         elif "zmumu" in region or "zmmcr" in region:
             signals = []
-            bkg_order = ["QCD", "singlet", "VV", "Wjets", "ttbar", "Zjets"]
-            onto = "Zjets"
+            bkg_order = ["QCD", "singlet", "VV", "Wjets", "ttbar", "Zll"]
+            onto = "Zll"
         elif "control-tt" in region:
             signals = []
             bkg_order = ["Wjets", "Zjets", "QCD", "singlet", "ttbar"]
@@ -422,8 +422,8 @@ def plot_inclusive(
             onto = "GJets"
         elif "zmumu" in region or "zmmcr" in region:
             signals = []
-            bkg_order = ["QCD", "singlet", "VV", "Wjets", "ttbar", "Zjets"]
-            onto = "Zjets"
+            bkg_order = ["QCD", "singlet", "VV", "Wjets", "ttbar", "Zll"]
+            onto = "Zll"
         elif "control-tt" in region:
             signals = []
             bkg_order = ["Wjets", "Zjets", "QCD", "singlet", "ttbar"]
@@ -551,8 +551,11 @@ def main(args):
         print("Warning: style_hbb.yaml not found. Using empty style.")
         style = {}
 
+    is_zmumu = "zmumu" in args.region or "zmmcr" in args.region
+    categories_to_iterate = ["inclusive"] if is_zmumu else categories
+
     if args.plot_type == "process":
-        for category in categories:
+        for category in categories_to_iterate:
             print(f"Plotting {args.variable} by process for {category}...")
             plot_by_process(
                 histograms,
@@ -566,7 +569,7 @@ def main(args):
                 ptinclusive=(args.inclusive_scope == "pt-inclusive"),
             )
     elif args.plot_type == "flavor":
-        for category in categories:
+        for category in categories_to_iterate:
             print(f"Plotting {args.variable} by flavor for {category}...")
             plot_by_flavor(
                 histograms,
