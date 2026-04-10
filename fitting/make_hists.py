@@ -262,29 +262,34 @@ def main(args):
 
                 h = hist.Hist(axis_var, axis_bin, axis_cat, axis_flav)
                 for dataset in datasets:
-                    events = utils.load_samples(
+                    h = hist.Hist(axis_var, axis_bin, axis_cat, axis_flav)
+                for dataset in datasets:
+                    
+                    # 1. Loop through the chunks using the new chunked=True flag
+                    for events_chunk in utils.load_samples(
                         data_dir=Path(
-                            # f"/eos/uscms/store/group/lpchbbrun3/skims/{args.tag}/{args.year}"
                             f"/eos/uscms/store/group/lpchbbrun3/gmachado/{args.tag}/{args.year}"
                         ),
                         samples={process: [dataset]},
                         columns=cols,
                         region=region_to_load,
                         variation=variation,
-                    )
-                    if events:
-                        # Pass the dynamic branch
-                        h = fill_binned_histogram(
-                            h,
-                            events,
-                            region_key,
-                            setup,
-                            bin_branch=bin_branch,
-                            weight_syst=syst if not is_folder else "nominal",
-                        )
-                    # Memory management within dataset loop
-                    del events
-                    gc.collect()
+                        chunked=True,  # <-- Trigger the memory-safe loading
+                    ):
+                        if events_chunk:
+                            # 2. Fill the histogram dynamically as chunks arrive
+                            h = fill_binned_histogram(
+                                h,
+                                events_chunk,
+                                region_key,
+                                setup,
+                                bin_branch=bin_branch,
+                                weight_syst=syst if not is_folder else "nominal",
+                            )
+                            
+                        # 3. Aggressively clear the chunk from memory
+                        del events_chunk
+                        gc.collect()
 
                 if h.sum() > 0:
                     histograms[process] = h
