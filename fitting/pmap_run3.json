@@ -202,15 +202,7 @@
         "DYto2L-4Jets_MLL-50_1J",
         "DYto2L-4Jets_MLL-50_2J",
         "DYto2L-4Jets_MLL-50_3J",
-        "DYto2L-4Jets_MLL-50_4J",
-        "DYto2L-2Jets_MLL-50_PTLL-100to200_1J",
-        "DYto2L-2Jets_MLL-50_PTLL-200to400_1J",
-        "DYto2L-2Jets_MLL-50_PTLL-400to600_1J",
-        "DYto2L-2Jets_MLL-50_PTLL-600_1J",
-        "DYto2L-2Jets_MLL-50_PTLL-100to200_2J",
-        "DYto2L-2Jets_MLL-50_PTLL-200to400_2J",
-        "DYto2L-2Jets_MLL-50_PTLL-400to600_2J",
-        "DYto2L-2Jets_MLL-50_PTLL-600_2J"
+        "DYto2L-4Jets_MLL-50_4J"
     ],
     "Zll": [
         "DYto2L-2Jets_MLL-10to50",

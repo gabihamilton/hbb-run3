@@ -44,6 +44,18 @@ zjets:
   label: $Z\rightarrow q\bar{q}$
   color: '#2a9d8f'
   hatch: null
+Zjets:
+  label: $Z\rightarrow q\bar{q}$
+  color: '#2a9d8f'
+  hatch: null
+zll:
+  label: $Z\rightarrow \ell\ell$
+  color: '#2a9d8f'
+  hatch: null
+Zll:
+  label: $Z\rightarrow \ell\ell$
+  color: '#2a9d8f'
+  hatch: null
 wjets:
   label: $W\rightarrow q\bar{q}$
   color: '#84a98c'
