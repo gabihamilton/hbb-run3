@@ -1020,7 +1020,10 @@ class categorizer(SkimmerABC):
                         skim(region, ak.zip({**output_array, **output_array_extra}, depth_limit=1))
                     else:
                         if isRealData:
-                            skim(region, ak.zip(output_array, depth_limit=1))
+                            if region == "control-zmumu":
+                                skim(region, ak.zip({**output_array, **output_array_zmm}, depth_limit=1))
+                            else:
+                                skim(region, ak.zip(output_array, depth_limit=1))
                         else:
                             if "signal" in region:
                                 skim(
