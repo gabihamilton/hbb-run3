@@ -40,36 +40,37 @@ def fill_binned_histogram(
 
         # --- 1. WEIGHTING LOGIC ---
         if not is_data and weight_syst != "nominal" and weight_syst in data.columns:
-            # Systematic weights (like btagSF) usually need normalization by sum_genWeight
-            weight_val = data[weight_syst].astype(float) / data["sum_genWeight"].astype(float)
+            # Systematic weights usually need normalization by sum_genWeight
+            weight_val = (data[weight_syst].astype(float) / data["sum_genWeight"].astype(float)).to_numpy()
         else:
-            # load_samples already calculated finalWeight (weight / sum_genWeight)
-            weight_val = data["finalWeight"].astype(float)
+            # load_samples already calculated finalWeight
+            weight_val = data["finalWeight"].astype(float).to_numpy()
 
-        # --- 2. VARIABLE EXTRACTION ---
+        # --- 2. VARIABLE EXTRACTION (Converted to NumPy for memory efficiency) ---
         var_col = setup["observable"]["branch_name"]
-        pt = data["FatJet0_pt"]
-        msd = data["FatJet0_msd"]
+        pt = data["FatJet0_pt"].to_numpy()
+        msd = data["FatJet0_msd"].to_numpy()
 
         # Extract the dynamic binning variable
-        bin_data = data[bin_branch]
+        bin_data = data[bin_branch].to_numpy()
 
-        # Robust MET extraction from the parquet record
+        # Robust MET extraction
         if "MET" in data.columns:
             met_pt = data["MET"].pt if hasattr(data["MET"], "pt") else data["MET"]
+            met_pt = np.array(met_pt)
         else:
             met_pt = np.zeros(len(data))
 
         dphi = np.nan
         if "Photon0_phi" in data.columns and "FatJet0_phi" in data.columns:
-            dphi_raw = np.abs(data["Photon0_phi"] - data["FatJet0_phi"])
+            dphi_raw = np.abs(data["Photon0_phi"].to_numpy() - data["FatJet0_phi"].to_numpy())
             dphi = np.where(dphi_raw > np.pi, 2 * np.pi - dphi_raw, dphi_raw)
 
-        var_series = dphi if var_col == "delta_phi_photon_jet" else data[var_col]
+        var_series = dphi if var_col == "delta_phi_photon_jet" else data[var_col].to_numpy()
 
         is_mc = "GenFlavor" in data.columns and data["GenFlavor"].notna().any()
         genflavordata = (
-            data["GenFlavor"].fillna(0).astype(np.int8) if is_mc else np.zeros(len(data), dtype=np.int8)
+            data["GenFlavor"].fillna(0).astype(np.int8).to_numpy() if is_mc else np.zeros(len(data), dtype=np.int8)
         )
 
         # --- 3. SELECTION LOGIC ---
@@ -83,25 +84,25 @@ def fill_binned_histogram(
         actual_reg_name = REGION_MAP.get(region_key, region_key)
 
         if "zgamma" in actual_reg_name:
-            # Specific Z-Gamma logic from Gabi's script
-            trigger = data["Photon200"] | data["Photon110EB_TightID_TightIso"]
-            topo_cuts = (dphi > 2.2) & (met_pt < 50) & (data["Photon0_pt"] > 120)
+            # Specific Z-Gamma logic
+            trigger = (data["Photon200"] | data["Photon110EB_TightID_TightIso"]).to_numpy()
+            topo_cuts = (dphi > 2.2) & (met_pt < 50) & (data["Photon0_pt"].to_numpy() > 120)
             pre_selection = basic_cuts & topo_cuts & trigger & (pt > pt_min)
         elif "zmumu" in actual_reg_name:
-            # Z(mumu) CR: observable is mll, bin variable is dimuon pair pt
+            # Z(mumu) CR logic
             basic_cuts = (var_series > obs_min) & (var_series < obs_max)
             pre_selection = basic_cuts & (bin_data > pt_min)
         else:
-            # Lara's Signal Region logic
+            # Signal Region logic
             pre_selection = basic_cuts & (pt > pt_min)
 
         if "zmumu" in actual_reg_name:
-            # Only inclusive category for zmumu CR — no Txbb pass/fail
             selection_dict = {"inclusive": pre_selection}
         else:
-            Txcc = data["FatJet0_ParTPXccVsQCD"]
-            Txbb = data["FatJet0_ParTPXbbVsQCD"]
-            Txbbxcc = data["FatJet0_ParTPXbbXcc"]
+            Txcc = data["FatJet0_ParTPXccVsQCD"].to_numpy()
+            Txbb = data["FatJet0_ParTPXbbVsQCD"].to_numpy()
+            Txbbxcc = data["FatJet0_ParTPXbbXcc"].to_numpy()
+            
             selection_dict = {
                 "pass_bb": pre_selection & (Txbbxcc > working_point) & (Txbb > Txcc),
                 "pass_cc": pre_selection & (Txbbxcc > working_point) & (Txcc > Txbb),
@@ -115,7 +116,7 @@ def fill_binned_histogram(
             if category in h.axes["category"]:
                 h.fill(
                     var_series[selection],
-                    bin_data[selection],  # using dynamic bin data here
+                    bin_data[selection],
                     category=category,
                     genflavor=genflavordata[selection],
                     weight=weight_val[selection],

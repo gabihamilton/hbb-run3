@@ -199,7 +199,10 @@ def load_samples(
         # print(events_list)
 
         if events_list:
-            events_dict[process] = pd.concat(events_list)
+            if len(events_list) == 1:
+                events_dict[process] = events_list[0]
+            else:
+                events_dict[process] = pd.concat(events_list, ignore_index=True)
         else:
             warnings.warn(
                 f"No valid events loaded for process {process}.", category=UserWarning, stacklevel=2
