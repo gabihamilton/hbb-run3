@@ -1,0 +1,13 @@
+Universe   = vanilla
+Executable = /uscms_data/d3/gmachado/hbb-run3/fitting/run_make_hists.sh
+Arguments  = --year 2024 --tag Test_v15 --setup setup_zgcr.json --outdir results/ --save-root
+
+Output = /uscms_data/d3/gmachado/hbb-run3/fitting/logs/make_hists_zgcr.out
+Error  = /uscms_data/d3/gmachado/hbb-run3/fitting/logs/make_hists_zgcr.err
+Log    = /uscms_data/d3/gmachado/hbb-run3/fitting/logs/make_hists_zgcr.log
+
+request_memory = 8000
+request_cpus   = 1
++ProjectName   = "cmspilot"
+
+Queue
