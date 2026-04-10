@@ -6,6 +6,66 @@ qcd:
   label: QCD
   color: '#94a4a2'
   hatch: null
+QCD:
+  label: QCD
+  color: '#94a4a2'
+  hatch: null
+GJets:
+  label: G+Jets
+  color: '#1d3557'
+  hatch: null
+ttbar:
+  label: $t\bar{t}$
+  color: 'teal'
+  hatch: /////
+singlet:
+  label: Single Top
+  color: '#2a9d8f'
+  hatch: /////
+VV:
+  label: VV
+  color: '#457b9d'
+  hatch: /////
+Wjets:
+  label: $W\rightarrow q\bar{q}$
+  color: '#84a98c'
+  hatch: null
+Wgamma:
+  label: $W\gamma$
+  color: '#52b788'
+  hatch: /////
+Zgamma:
+  label: $Z\gamma$
+  color: '#06d6a0'
+  hatch: null
+EWKZ:
+  label: EWK Z
+  color: '#457b9d'
+  hatch: \\\\\
+EWKW:
+  label: EWK W
+  color: '#74b3ce'
+  hatch: \\\\\
+ggF:
+  label: ggF $H\rightarrow b\bar{b}$
+  color: '#4E5A7E'
+  hatch: null
+VBF:
+  label: VBF $H\rightarrow b\bar{b}$
+  color: '#e63946'
+  hatch: null
+WH:
+  label: WH
+  color: '#f4a261'
+  hatch: null
+ZH:
+  label: ZH
+  color: '#e76f51'
+  hatch: null
+ttH:
+  label: ttH
+  color: '#264653'
+  hatch: null
 total:
   label: total
   color: '#3f90da'
