@@ -9,5 +9,6 @@ Log    = /uscms_data/d3/gmachado/hbb-run3/fitting/logs/make_hists_zgcr.log
 request_memory = 8000
 request_cpus   = 1
 +ProjectName   = "cmspilot"
++SingularityBindPath = "/uscms_data,/eos/uscms"
 
 Queue
