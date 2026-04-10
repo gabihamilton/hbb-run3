@@ -123,7 +123,7 @@ def plot_by_process(
             onto = "GJets"
         elif "zmumu" in region or "zmmcr" in region:
             signals = []
-            bkg_order = ["QCD", "singlet", "VV", "Wjets", "ttbar", "Zll"]
+            bkg_order = ["QCD", "singlet", "VV", "Wjets", "ttbar"]
             onto = "Zll"
         elif "control-tt" in region:
             signals = []
@@ -422,7 +422,7 @@ def plot_inclusive(
             onto = "GJets"
         elif "zmumu" in region or "zmmcr" in region:
             signals = []
-            bkg_order = ["QCD", "singlet", "VV", "Wjets", "ttbar", "Zll"]
+            bkg_order = ["QCD", "singlet", "VV", "Wjets", "ttbar"]
             onto = "Zll"
         elif "control-tt" in region:
             signals = []
