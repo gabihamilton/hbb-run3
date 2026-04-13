@@ -49,7 +49,6 @@ STACK_ORDER = ["Zgamma", "Wgamma", "VV", "singlet", "Wjets", "ttbar", "Zll"]
 # ---------------------------------------------------------------------------
 COLS = [
     "weight",
-    "finalWeight",
     "GenFlavor",
     # zmumu-specific
     "Zmm_MuonLead_pt",
