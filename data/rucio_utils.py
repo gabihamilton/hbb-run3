@@ -5,6 +5,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from collections import defaultdict
 
 from rucio.client import Client
@@ -98,6 +99,27 @@ def _get_pfn_for_site(path, rules):
         return rules + "/" + path
 
 
+def _list_replicas_with_retry(client, dids, max_retries=5, backoff=10):
+    """
+    Collect all replicas from Rucio, retrying on transient network errors
+    (e.g. ChunkedEncodingError / ProtocolError: Response ended prematurely).
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            return list(client.list_replicas(dids))
+        except Exception as e:
+            if attempt < max_retries:
+                wait = backoff * attempt
+                print(
+                    f"  [Rucio] list_replicas failed (attempt {attempt}/{max_retries}): {e}"
+                )
+                print(f"  [Rucio] Retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                print(f"  [Rucio] list_replicas failed after {max_retries} attempts: {e}")
+                raise
+
+
 def get_dataset_files(
     dataset,
     whitelist_sites=None,
@@ -122,7 +144,8 @@ def get_dataset_files(
     client = get_rucio_client()
     outsites = []
     outfiles = []
-    for filedata in client.list_replicas([{"scope": "cms", "name": dataset}]):
+    replicas = _list_replicas_with_retry(client, [{"scope": "cms", "name": dataset}])
+    for filedata in replicas:
         outfile = []
         outsite = []
         rses = filedata["rses"]
