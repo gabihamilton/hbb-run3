@@ -31,6 +31,7 @@ echo "https://github.com/DAZSLE/hbb-run3/commit/$${commithash}" > commithash.txt
 
 pip install -e .
 pip install xgboost
+python3 -m pip install --user "tritonclient[grpc]"
 
 # run code
 if [[ $BDT == True ]]; then
