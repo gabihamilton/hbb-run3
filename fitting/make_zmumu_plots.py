@@ -275,11 +275,13 @@ def make_stack_plot(
         handles,
         labels,
         ncol=2,
-        fontsize="small",
-        labelspacing=0.4,
-        columnspacing=1.5,
+        fontsize="x-small",
+        labelspacing=0.2,
+        columnspacing=0.8,
+        handlelength=1.0,
+        handleheight=0.8,
         loc="upper right",
-        markerscale=0.8,
+        markerscale=0.7,
     )
     hep.yscale_legend(ax, soft_fail=True)
 
