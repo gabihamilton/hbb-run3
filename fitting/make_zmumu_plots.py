@@ -322,6 +322,17 @@ def make_stack_plot(
     rax.xaxis.grid(True, which="major")
     rax.yaxis.grid(True, which="major")
 
+    # Auto-zoom x-axis: skip leading/trailing empty bins
+    combined = mc_vals.copy()
+    if h_data is not None:
+        combined = combined + h_data.values()
+    nonzero = np.where(combined > 0)[0]
+    if len(nonzero) > 0:
+        x_min = bins[max(0, nonzero[0] - 1)]
+        x_max = bins[min(len(bins) - 1, nonzero[-1] + 2)]
+        ax.set_xlim(x_min, x_max)
+        rax.set_xlim(x_min, x_max)
+
     fig.savefig(outpath, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved: {outpath}")
