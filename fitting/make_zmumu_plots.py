@@ -348,7 +348,9 @@ def main(args: argparse.Namespace) -> None:
     tag    = args.tag
     outdir = Path(args.outdir)
 
-    if args.personal_path:
+    if args.data_dir:
+        data_dir = Path(args.data_dir)
+    elif args.personal_path:
         data_dir = Path(f"/eos/uscms/store/group/lpchbbrun3/gmachado/{tag}/{year}")
     else:
         data_dir = Path(f"/eos/uscms/store/group/lpchbbrun3/skims/{tag}/{year}")
@@ -448,6 +450,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--personal-path", action="store_true",
         help="Use personal EOS path (.../gmachado/...) instead of shared path",
+    )
+    parser.add_argument(
+        "--data-dir",
+        default=None,
+        help="Full path to the directory containing the parquets for this year, "
+             "e.g. /eos/uscms/store/group/lpchbbrun3/lara/MyTag/2024 "
+             "Overrides --tag and --personal-path.",
     )
     args = parser.parse_args()
     main(args)
