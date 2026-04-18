@@ -255,7 +255,7 @@ def make_stack_plot(
 
     ax.set_ylabel("Events")
     ax.legend(fontsize=10, ncol=2)
-    lumi_val = LUMI.get(year, 0) / 1000.0
+    lumi_val = round(LUMI.get(year, 0) / 1000.0, 2)
     hep.cms.label(ax=ax, data=(data_total is not None), lumi=lumi_val, year=year)
     ax.set_title(f"Z(μμ) CR — {category_label}", fontsize=13, pad=40)
 
@@ -267,7 +267,7 @@ def make_stack_plot(
             bin_centers, ratio, yerr=ratio_err, fmt="o", color="black", markersize=4
         )
         rax.axhline(1, color="gray", linestyle="--", linewidth=1)
-        rax.set_ylim(0.5, 1.5)
+        rax.set_ylim(0, 2)
         rax.set_ylabel("Data/MC")
     else:
         rax.set_visible(False)
