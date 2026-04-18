@@ -278,7 +278,7 @@ def make_stack_plot(
         fontsize="small",
         labelspacing=0.4,
         columnspacing=1.5,
-        bbox_to_anchor=(1, 1),
+        loc="upper right",
         markerscale=0.8,
     )
     hep.yscale_legend(ax, soft_fail=True)
