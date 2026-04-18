@@ -133,6 +133,7 @@ COLS = [
 NAK8_BINS = np.array([-0.5, 0.5, 1.5, 2.5, 3.5, 4.5])
 
 VARS_BOTH = [
+    ("Zmm_MuonPair_mll",   np.linspace(80, 100, 21), r"$m(\mu\mu)$ [GeV]"),
     ("Zmm_MuonLead_pt",    np.linspace(0, 500, 26),  r"Lead muon $p_T$ [GeV]"),
     ("Zmm_MuonSublead_pt", np.linspace(0, 400, 26),  r"Sublead muon $p_T$ [GeV]"),
     ("Zmm_MuonPair_pt",    np.linspace(0, 600, 31),  r"$p_T(\mu\mu)$ [GeV]"),
@@ -399,29 +400,21 @@ def main(args: argparse.Namespace) -> None:
         print("ERROR: No events loaded. Check --tag / --year / --personal-path.")
         return
 
-    # --- mll Z-peak window ---
-    mll_cut: dict[str, pd.Series] = {}
-    for proc, df in all_events.items():
-        if "Zmm_MuonPair_mll" in df.columns:
-            mll_cut[proc] = (df["Zmm_MuonPair_mll"] > 76) & (df["Zmm_MuonPair_mll"] < 106)
-        else:
-            mll_cut[proc] = pd.Series(True, index=df.index)
-
     # --- Photon-split category masks ---
+    # Note: mll and pT(mumu)>300 cuts are already applied at processor level.
     PHOTON_PT_CUT = 120.0
     no_photon_mask: dict[str, pd.Series] = {}
     gamma_mask:     dict[str, pd.Series] = {}
 
     for proc, df in all_events.items():
-        base = mll_cut[proc]
         if "Zmm_ntightPhotons" in df.columns:
-            no_photon_mask[proc] = base & (df["Zmm_ntightPhotons"] == 0)
+            no_photon_mask[proc] = df["Zmm_ntightPhotons"] == 0
             has_photon = df["Zmm_ntightPhotons"] >= 1
             if "Photon0_pt" in df.columns:
                 has_photon = has_photon & (df["Photon0_pt"] > PHOTON_PT_CUT)
-            gamma_mask[proc] = base & has_photon
+            gamma_mask[proc] = has_photon
         else:
-            no_photon_mask[proc] = base
+            no_photon_mask[proc] = pd.Series(True, index=df.index)
             gamma_mask[proc] = pd.Series(False, index=df.index)
 
     # --- No-photon category ---
