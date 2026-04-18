@@ -205,7 +205,7 @@ def make_stack_plot(
         vals = get_values(df, var).fillna(-999).values
         weights = df["finalWeight"].astype(float).values
 
-        h = hist.Hist(hist.axis.Variable(bins, label=xlabel))
+        h = hist.Hist(hist.axis.Variable(bins, label=xlabel), storage=hist.storage.Weight())
         h.fill(vals, weight=weights)
         h_mc[proc] = h
 
@@ -251,7 +251,7 @@ def make_stack_plot(
             df_data = df_data[mask]
         if not df_data.empty:
             vals_data = get_values(df_data, var).fillna(-999).values
-            h_data = hist.Hist(hist.axis.Variable(bins, label=xlabel))
+            h_data = hist.Hist(hist.axis.Variable(bins, label=xlabel), storage=hist.storage.Weight())
             h_data.fill(vals_data)
             hep.histplot(
                 h_data,
