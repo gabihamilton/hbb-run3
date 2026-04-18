@@ -284,12 +284,11 @@ def make_stack_plot(
     hep.yscale_legend(ax, soft_fail=True)
 
     lumi_val = round(LUMI.get(year, 0) / 1000.0, 2)
-    hep.cms.label(
-        ax=ax,
-        data=(h_data is not None),
-        lumi=lumi_val,
-        year=year,
-        label=f"Z(μμ) CR — {category_label}",
+    hep.cms.label(ax=ax, data=(h_data is not None), lumi=lumi_val, year=year, com=13.6)
+    ax.text(
+        0.05, 0.95, f"Z(μμ) CR — {category_label}",
+        transform=ax.transAxes, fontsize=18,
+        verticalalignment="top",
     )
 
     # ------------------------------------------------------------------
