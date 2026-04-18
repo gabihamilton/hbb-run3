@@ -39,22 +39,11 @@ hep.style.use("CMS")
 # ---------------------------------------------------------------------------
 # DY (Zll) sub-groups split by pT(ll) — loaded with inline dataset lists
 # ---------------------------------------------------------------------------
+# NOTE: We use ONLY the PTLL-binned samples here, NOT the inclusive 0J/1J/2J samples.
+# The inclusive jet-multiplicity samples (0J/1J/2J) cover ALL pT(ll) including the same
+# ranges as the PTLL-binned samples. Stacking both would double-count DY at high pT(ll)
+# (the boosted regime our selection lives in), causing ~2x MC over-prediction.
 DY_GROUPS = {
-    "Zll_incl": {
-        "datasets": [
-            "DYto2L-2Jets_MLL-10to50",
-            "DYto2L-2Jets_MLL-50_0J",
-            "DYto2L-2Jets_MLL-50_1J",
-            "DYto2L-2Jets_MLL-50_2J",
-            "DYto2L-4Jets_MLL-10to50",
-            "DYto2L-4Jets_MLL-50_1J",
-            "DYto2L-4Jets_MLL-50_2J",
-            "DYto2L-4Jets_MLL-50_3J",
-            "DYto2L-4Jets_MLL-50_4J",
-        ],
-        "color": "#1A5276",
-        "label": r"DY incl.",
-    },
     "Zll_PTLL_100to200": {
         "datasets": [
             "DYto2L-2Jets_MLL-50_PTLL-100to200_1J",
@@ -101,11 +90,10 @@ OTHER_PROCESSES = {
     "Zgamma":  {"color": "#85C1E9", "label": r"Z$\gamma$"},
 }
 
-# Stack order: smallest contribution on top; dominant DY incl. at bottom
+# Stack order: smallest contribution on top; lowest pT bin at bottom
 STACK_ORDER = [
     "Zgamma", "Wgamma", "VV", "singlet", "Wjets", "ttbar",
-    "Zll_PTLL_600", "Zll_PTLL_400to600", "Zll_PTLL_200to400",
-    "Zll_PTLL_100to200", "Zll_incl",
+    "Zll_PTLL_600", "Zll_PTLL_400to600", "Zll_PTLL_200to400", "Zll_PTLL_100to200",
 ]
 
 # Combined style lookup
