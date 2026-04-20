@@ -94,10 +94,17 @@ DY_GROUPS = {
 # background in the gamma category of the zmumu CR.
 # ---------------------------------------------------------------------------
 DYGAMMA_DATASETS = [
+    # 2024 naming convention (Bin-MLL-50-PTG-*, 4 bins from 100 GeV)
     "DYGto2LG-1Jets_Bin-MLL-50-PTG-100",
     "DYGto2LG-1Jets_Bin-MLL-50-PTG-200",
     "DYGto2LG-1Jets_Bin-MLL-50-PTG-400",
     "DYGto2LG-1Jets_Bin-MLL-50-PTG-600",
+    # Pre-2024 naming convention (MLL-50_PTG-*, 5 bins including 10–100 GeV)
+    "DYGto2LG-1Jets_MLL-50_PTG-10to100",
+    "DYGto2LG-1Jets_MLL-50_PTG-100to200",
+    "DYGto2LG-1Jets_MLL-50_PTG-200to400",
+    "DYGto2LG-1Jets_MLL-50_PTG-400to600",
+    "DYGto2LG-1Jets_MLL-50_PTG-600",
 ]
 
 # ---------------------------------------------------------------------------
