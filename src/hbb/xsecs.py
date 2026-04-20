@@ -197,16 +197,22 @@ xsecs["DYto2L-2Jets_MLL-50_PTLL-200to400_2J"] = 7.159
 xsecs["DYto2L-2Jets_MLL-50_PTLL-400to600_2J"] = 0.4157
 xsecs["DYto2L-2Jets_MLL-50_PTLL-600_2J"] = 0.07019
 
-# VGammaLep - 2024 (DYG + WGtoLNuG new binning) - xsecs TODO: get from McM
-xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-100"] = 0.3942  # TODO
-xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-200"] = 0.04738  # TODO
-xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-400"] = 0.003741  # TODO
-xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-600"] = 0.0006443  # TODO
-xsecs["WGtoLNuG-1Jets_Bin-PTG-100"] = 2.556  # TODO
-xsecs["WGtoLNuG-1Jets_Bin-PTG-200"] = 0.3179  # TODO
-xsecs["WGtoLNuG-1Jets_Bin-PTG-400"] = 0.02661  # TODO
-xsecs["WGtoLNuG-1Jets_Bin-PTG-600"] = 0.004734  # TODO
-xsecs["WGtoLNuG-1Jets"] = 671.5  # TODO
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-100to200"] = 0.3493
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-10to100"] = 126.6
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-200to400"] = 0.04331
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-400to600"] = 0.00313
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-600"] = 0.0006528
+
+# VGammaLep - 2024 (DYG + WGtoLNuG new binning) - xsecs DONE: get from McM
+xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-100"] = 0.3942  #
+xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-200"] = 0.04738  #
+xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-400"] = 0.003741  #
+xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-600"] = 0.0006443  #
+xsecs["WGtoLNuG-1Jets_Bin-PTG-100"] = 2.556  #
+xsecs["WGtoLNuG-1Jets_Bin-PTG-200"] = 0.3179  #
+xsecs["WGtoLNuG-1Jets_Bin-PTG-400"] = 0.02661  #
+xsecs["WGtoLNuG-1Jets_Bin-PTG-600"] = 0.004734  #
+xsecs["WGtoLNuG-1Jets"] = 671.5
 
 # VGammaHad - 2024 (ZGto2QG + WGto2QG new binning) - xsecs TODO: get from McM
 xsecs["ZGto2QG-1Jets_Bin-PTG-100"] = 2.251  # TODO
