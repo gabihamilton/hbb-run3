@@ -21,6 +21,9 @@ Usage (from fitting/):
   for year in 2022 2022EE 2023 2023BPix; do
       python make_zmumu_plots.py --year $year --tag Test_v15_v14_private --outdir plots/zmumu/ --personal-path
   done
+
+  # Custom parquet location (e.g. Lara's skims):
+  python make_zmumu_plots.py --year 2024 --tag unused --data-dir /eos/uscms/store/group/lpchbbrun3/lara/MyTag/2024
 """
 
 from __future__ import annotations
@@ -86,6 +89,18 @@ DY_GROUPS = {
 }
 
 # ---------------------------------------------------------------------------
+# DY+γ (Z→ℓℓ+γ): photon-pT-binned samples, loaded inline.
+# These produce events with two muons AND a photon — the dominant irreducible
+# background in the gamma category of the zmumu CR.
+# ---------------------------------------------------------------------------
+DYGAMMA_DATASETS = [
+    "DYGto2LG-1Jets_Bin-MLL-50-PTG-100",
+    "DYGto2LG-1Jets_Bin-MLL-50-PTG-200",
+    "DYGto2LG-1Jets_Bin-MLL-50-PTG-400",
+    "DYGto2LG-1Jets_Bin-MLL-50-PTG-600",
+]
+
+# ---------------------------------------------------------------------------
 # Other MC processes — loaded via pmap_run3.json
 # ---------------------------------------------------------------------------
 OTHER_PROCESSES = {
@@ -94,12 +109,12 @@ OTHER_PROCESSES = {
     "singlet": {"color": "#F39C12", "label": "Single t"},
     "VV":      {"color": "#9B59B6", "label": "VV"},
     "Wgamma":  {"color": "#82E0AA", "label": r"W$\gamma$"},
-    "Zgamma":  {"color": "#85C1E9", "label": r"Z$\gamma$"},
+    "Zgamma":  {"color": "#85C1E9", "label": r"Z$\gamma$ (had/inv)"},
 }
 
 # Stack order: smallest contribution on top; lowest pT bin at bottom
 STACK_ORDER = [
-    "Zgamma", "Wgamma", "VV", "singlet", "Wjets", "ttbar",
+    "DYgamma", "Zgamma", "Wgamma", "VV", "singlet", "Wjets", "ttbar",
     "Zll_PTLL_600", "Zll_PTLL_400to600", "Zll_PTLL_200to400", "Zll_PTLL_100to200",
 ]
 
@@ -107,6 +122,7 @@ STACK_ORDER = [
 PROC_STYLE: dict[str, dict] = {
     **{k: {"color": v["color"], "label": v["label"]} for k, v in DY_GROUPS.items()},
     **OTHER_PROCESSES,
+    "DYgamma": {"color": "#1ABC9C", "label": r"DY+$\gamma$ ($Z\to\ell\ell\gamma$)"},
 }
 
 # ---------------------------------------------------------------------------
@@ -375,6 +391,21 @@ def main(args: argparse.Namespace) -> None:
             print(f"  Loaded {proc}: {len(loaded[proc]):,} events")
         else:
             print(f"  [skip] {proc}: no parquets found")
+
+    # --- Load DY+γ (Z→ℓℓ+γ) inline ---
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        loaded = utils.load_samples(
+            data_dir=data_dir,
+            samples={"DYgamma": DYGAMMA_DATASETS},
+            columns=COLS,
+            region=region,
+        )
+    if loaded and "DYgamma" in loaded and not loaded["DYgamma"].empty:
+        all_events["DYgamma"] = loaded["DYgamma"]
+        print(f"  Loaded DYgamma: {len(loaded['DYgamma']):,} events")
+    else:
+        print(f"  [skip] DYgamma: no parquets found")
 
     # --- Load other MC + data via pmap ---
     with open(Path(__file__).parent / "pmap_run3.json") as f:
