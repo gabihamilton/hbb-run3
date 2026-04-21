@@ -32,7 +32,7 @@ ROOT.gROOT.SetBatch(True)
 warnings.filterwarnings("ignore")
 rl.util.install_roofit_helpers()
 
-lumi_err = {"2022": 1.01, "2023": 1.02}
+lumi_err = {"2022": 1.01, "2023": 1.02, "2024": 1.02}  # 2024: TODO get official CMS value
 eps = 0.001 
 
 
@@ -375,7 +375,7 @@ def rhalphabet(args):
 
                     # Apply Luminosity
                     sample.setParamEffect(
-                        sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2023"])
+                        sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2024"])
                     )
 
                     if do_systematics:
@@ -623,7 +623,7 @@ def rhalphabet(args):
                 stype = rl.Sample.BACKGROUND
                 sample = rl.TemplateSample(ch.name + '_' + sName, stype, templates[sName])
 
-                sample.setParamEffect(sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2023"]))
+                sample.setParamEffect(sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2024"]))
                 if do_systematics:
 
                     sample.autoMCStats(lnN=True) 

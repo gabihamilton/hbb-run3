@@ -249,6 +249,24 @@ def main(args):
         if obs_branch not in cols:
             cols.append(obs_branch)
 
+        # ------------------------------------------------------------------
+        # Build loose PyArrow row filters from the setup config.
+        # These are applied at read time (predicate pushdown) — rows that
+        # fail are never loaded into RAM, which is critical for large MC
+        # samples like GJets that have O(100M) events in the parquet.
+        # Use slightly looser cuts than the analysis selection so we don't
+        # accidentally lose events at bin edges.
+        # ------------------------------------------------------------------
+        pq_filters = [
+            ("FatJet0_msd", ">=", float(obs["min"])),
+            ("FatJet0_msd", "<=", float(obs["max"])),
+            ("FatJet0_pt",  ">=", float(pt_bins[0])),
+        ]
+        if "zgamma" in region_to_load:
+            # Photon0_pt > 120 is the analysis cut; pre-filter at 100 to
+            # keep a small margin while cutting ~90% of low-pT GJets rows.
+            pq_filters.append(("Photon0_pt", ">=", 100.0))
+
         for syst in systs_to_run:
             print(f"\n>>> Running Systematic Pass: {syst}")
             is_folder = any(fs in syst for fs in folder_systs)
@@ -271,6 +289,7 @@ def main(args):
                         columns=cols,
                         region=region_to_load,
                         variation=variation,
+                        filters=pq_filters,
                     )
                     if events:
                         # Pass the dynamic branch
