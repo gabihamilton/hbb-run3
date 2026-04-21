@@ -264,7 +264,7 @@ def main(args):
                 h = hist.Hist(axis_var, axis_bin, axis_cat, axis_flav)
                 for dataset in datasets:
                     events = utils.load_samples(
-                        data_dir=Path(
+                        data_dir=Path(args.data_dir) if args.data_dir else Path(
                             f"/eos/uscms/store/group/lpchbbrun3/skims/{args.tag}/{args.year}"
                         ),
                         samples={process: [dataset]},
@@ -322,6 +322,12 @@ if __name__ == "__main__":
     parser.add_argument("--setup", required=True, help="Path to setup.json file")
     parser.add_argument("--outdir", default="results", help="Directory to save ROOT files")
     parser.add_argument("--save-root", action="store_true", help="Actually write the ROOT file")
+    parser.add_argument(
+        "--data-dir", default=None,
+        help="Override the full path to the parquet directory for this year, "
+             "e.g. /eos/uscms/store/group/lpchbbrun3/gmachado/Test_v15/2024 "
+             "Skips the --tag-based path construction.",
+    )
 
     args = parser.parse_args()
 
