@@ -89,7 +89,8 @@ def rhalphabet(args):
 
     cats_cfg = config["categories"]
     cats = list(cats_cfg.keys())
-    cats.remove("mucr") #necessary since all categories get the same treatment
+    if "mucr" in cats:
+        cats.remove("mucr") #necessary since all categories get the same treatment
 
     # TT Independent Parameters
     tqqeffSF = rl.IndependentParameter(f'tqqeffSF_{year}', 1., -50, 50)
