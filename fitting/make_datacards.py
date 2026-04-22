@@ -685,7 +685,8 @@ def rhalphabet(args):
     with (datacard_dir / f"{analysis}Model_{year}.pkl").open("wb") as fout:
         pickle.dump(model, fout)
     modeldir = datacard_dir / f"{analysis}Model_{year}"
-    muonCR_model.renderCombine(modeldir)
+    if do_muon_CR:
+        muonCR_model.renderCombine(modeldir)
     model.renderCombine(modeldir)
     print(f"Datacards saved to {modeldir}")
 
