@@ -1,693 +1,554 @@
-from __future__ import print_function, division
-import os
-import json
-import numpy as np
-import pickle
-import ROOT
-import pandas as pd
-import argparse
+"""
+Datacard Maker - Fully Configuration-Driven
+Supports: VBF Hbb Analysis, ZGamma Validation Region
 
+Author(s): Gabi Hamilton, Lara Zygala, Cristina Mantilla
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import pickle
+import warnings
+from pathlib import Path
+
+import numpy as np
 import rhalphalib as rl
+import ROOT
+from card_utils import (
+    add_systematics,
+    badtemplate,
+    get_merged_template,
+    get_template,
+    plot_mctf,
+    one_bin
+)
 
 from hbb.common_vars import LUMI
 
+ROOT.gROOT.SetBatch(True)
+warnings.filterwarnings("ignore")
 rl.util.install_roofit_helpers()
 
-eps=0.001 
-do_systematics = True
-do_muon_CR = True
+lumi_err = {"2022": 1.01, "2023": 1.02}
+eps = 0.001 
 
-lumi_err = {
-    "2022": 1.01,
-    "2023": 1.02
-}
 
-def badtemp_ma(hvalues, mask=None):
-    # Need minimum size & more than 1 non-zero bins           
-    tot = np.sum(hvalues[mask])
-    
-    count_nonzeros = np.sum(hvalues[mask] > 0)
-    if (tot < eps) or (count_nonzeros < 2):
-        return True
-    else:
-        return False
-
-def syst_variation(numerator,denominator):
-    """
-    Get systematic variation relative to nominal (denominator)
-    """
-    var = np.divide(numerator,denominator)
-    var[np.where(numerator==0)] = 1
-    var[np.where(denominator==0)] = 1
-
-    return var
-
-def smass(sName):
-    if sName in ['ggF','VBF','WH','ZH','ttH']:
-        _mass = 125.
-    elif sName in ['Wjets','EWKW','ttbar','singlet','VV']:
-        _mass = 80.379
-    elif sName in ['Zjets','Zjetsbb','EWKZ','EWKZbb']:
-        _mass = 91.
-    else:
-        raise ValueError("What is {}".format(sName))
-    return _mass
-
-def one_bin(year, tag, sName, region, ptbin, cat, syst):
-    f = ROOT.TFile.Open(f"results/{tag}/{year}/signalregion.root")
-
-    name = cat+region
-    if cat == 'ggf_':
-        name += 'pt'+str(ptbin)+'_'
-    elif cat == 'vbf_':
-        name += 'mjj'+str(ptbin)+'_'
-    elif cat == 'vh_':
-        name += 'pt'+str(ptbin)+'_'
-    elif cat == 'mucr_':
-        name += 'pt'+str(ptbin)+'_'
-
-    name += sName+'_'+syst
-
-    h = f.Get(name)
-    newh = h.Rebin(h.GetNbinsX())
-    sumw = [newh.GetBinContent(1)]
-    sumw2 = [newh.GetBinError(1)]
-
-    return (np.array(sumw), np.array([0., 1.]), "onebin", np.array(sumw2))
-
-def get_template(year, tag, sName, region, ptbin, cat, obs, syst):
-    """
-    Read msd template from root file
-    """
-
-    f = ROOT.TFile.Open(f"results/{tag}/{year}/signalregion.root")
-
-    name = cat+region
-    if cat == 'ggf_':
-        name += 'pt'+str(ptbin)+'_'
-    elif cat == 'vbf_':
-        name += 'mjj'+str(ptbin)+'_'
-    elif cat == 'vh_':
-        name += 'pt'+str(ptbin)+'_'
-    elif cat == 'mucr_':
-        name += 'pt'+str(ptbin)+'_'
-
-    name += sName+'_'+syst
-
-    h = f.Get(name)
-
-    sumw = []
-    sumw2 = []
-
-    for i in range(1,h.GetNbinsX()+1):
-
-        if h.GetBinContent(i) < 0:
-            sumw += [0]
-            sumw2 += [0]
-        else:
-            sumw += [h.GetBinContent(i)]
-            sumw2 += [h.GetBinError(i)*h.GetBinError(i)]
-
-    return (np.array(sumw), obs.binning, obs.name, np.array(sumw2))
-
-def shape_to_num(var, nom, clip=1.5):
-    nom_rate = np.sum(nom)
-    var_rate = np.sum(var)
-
-    if abs(var_rate/nom_rate) > clip:
-        var_rate = clip*nom_rate
-
-    if var_rate < 0:
-        var_rate = 0
-
-    return var_rate/nom_rate
-
-def plot_mctf(tf_MCtempl, msdbins, name,year,tag):
-    """
-    Plot the MC pass / fail TF as function of (pt,rho) and (pt,msd)
-    """
-    import matplotlib.pyplot as plt
-
-    outdir = f"results/{tag}/{year}/plots/MCTF/"
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-
-    # arrays for plotting pt vs msd                    
-    pts = np.linspace(450,1200,15)
-    ptpts, msdpts = np.meshgrid(pts[:-1] + 0.5 * np.diff(pts), msdbins[:-1] + 0.5 * np.diff(msdbins), indexing='ij')
-    ptpts_scaled = (ptpts - 450.) / (1200. - 450.)
-    rhopts = 2*np.log(msdpts/ptpts)
-
-    rhopts_scaled = (rhopts - (-6)) / ((-2.1) - (-6))
-    validbins = (rhopts_scaled >= 0) & (rhopts_scaled <= 1)
-
-    ptpts = ptpts[validbins].copy()
-    msdpts = msdpts[validbins].copy()
-    ptpts_scaled = ptpts_scaled[validbins].copy()
-    rhopts_scaled = rhopts_scaled[validbins].copy()
-
-    tf_MCtempl_vals = tf_MCtempl(ptpts_scaled, rhopts_scaled, nominal=True)
-    df = pd.DataFrame([])
-    df['msd'] = msdpts.reshape(-1)
-    df['pt'] = ptpts.reshape(-1)
-    df['MCTF'] = tf_MCtempl_vals.reshape(-1)
-
-    fig, ax = plt.subplots()
-    h = ax.hist2d(x=df["msd"],y=df["pt"],weights=df["MCTF"], bins=(msdbins,pts))
-    plt.xlabel("$m_{sd}$ [GeV]")
-    plt.ylabel("$p_{T}$ [GeV]")
-    cb = fig.colorbar(h[3],ax=ax)
-    cb.set_label("Ratio")
-    fig.savefig(outdir + "MCTF_msdpt_"+name+".png",bbox_inches="tight")
-    fig.savefig(outdir +"MCTF_msdpt_"+name+".pdf",bbox_inches="tight")
-    plt.clf()
-
-    # arrays for plotting pt vs rho                                          
-    rhos = np.linspace(-6,-2.1,23)
-    ptpts, rhopts = np.meshgrid(pts[:-1] + 0.5*np.diff(pts), rhos[:-1] + 0.5 * np.diff(rhos), indexing='ij')
-    ptpts_scaled = (ptpts - 450.) / (1200. - 450.)
-    rhopts_scaled = (rhopts - (-6)) / ((-2.1) - (-6))
-    validbins = (rhopts_scaled >= 0) & (rhopts_scaled <= 1)
-
-    ptpts = ptpts[validbins].copy()
-    rhopts = rhopts[validbins].copy()
-    ptpts_scaled = ptpts_scaled[validbins].copy()
-    rhopts_scaled = rhopts_scaled[validbins].copy()
-
-    tf_MCtempl_vals = tf_MCtempl(ptpts_scaled, rhopts_scaled, nominal=True)
-
-    df = pd.DataFrame([])
-    df['rho'] = rhopts.reshape(-1)
-    df['pt'] = ptpts.reshape(-1)
-    df['MCTF'] = tf_MCtempl_vals.reshape(-1)
-
-    fig, ax = plt.subplots()
-    h = ax.hist2d(x=df["rho"],y=df["pt"],weights=df["MCTF"],bins=(rhos,pts))
-    plt.xlabel("rho")
-    plt.ylabel("$p_{T}$ [GeV]")
-    cb = fig.colorbar(h[3],ax=ax)
-    cb.set_label("Ratio")
-    fig.savefig(outdir+"MCTF_rhopt_"+name+".png",bbox_inches="tight")
-    fig.savefig(outdir+"MCTF_rhopt_"+name+".pdf",bbox_inches="tight")
-
-    return
-
-def ggfvbf_rhalphabet(args):
-    """ 
-    Create the data cards!
-    """
-
+def rhalphabet(args):
+    # ---------------------------------------------------------
+    # 1. SETUP & LOAD CONFIG
+    # ---------------------------------------------------------
     year = args.year
     tag = args.tag
+    analysis = args.analysis
+    print(f"Running Card Maker for {year} (Analysis: {analysis})")
 
-    print("Running for "+year)
+    # Define Paths
+    working_dir = Path(f"{args.outdir}/{tag}/{year}")
+    datacard_dir = working_dir / "datacards"
+    initvals_dir = working_dir / "initial_vals"
 
-    working_dir = f"results/{tag}/{year}/"
-    datacard_dir = f"results/{tag}/{year}/datacards/"
-    initvals_dir = f"results/{tag}/{year}/initial_vals/"
+    datacard_dir.mkdir(parents=True, exist_ok=True)
+    initvals_dir.mkdir(parents=True, exist_ok=True)
+    if not (initvals_dir / "initial_vals_data_vh_bb.json").exists():
+        os.popen(f"cp -r initial_vals/* {initvals_dir}/ 2>/dev/null")
 
-    if not os.path.exists(datacard_dir):
-        os.makedirs(datacard_dir)
+    # Load Configuration
+    json_name = f"setup_{analysis}.json"
+    with Path(json_name).open() as f:
+        config = json.load(f)
 
-    if not os.path.exists(initvals_dir):
-        os.popen(f'cp -r initial_vals/ {initvals_dir}')
+    # ---------------------------------------------------------
+    # 2. READ SETTINGS FROM JSON
+    # ---------------------------------------------------------
 
-    with open(os.path.join(working_dir, 'setup.json')) as f:
-        setup = json.load(f)
-        cats_cfg = setup["categories"]
+    # Files & naming
+    root_file_name = config.get("root_filename", "signalregion.root").replace("{year}", year)
 
-    total_model_bins = []
+    # [FIXED] Define infile_path here!
+    infile_path = Path(args.indir) / root_file_name if args.indir else working_dir / root_file_name
 
-    # TT params
+    qcd_tf_proc = config.get("qcd_proc", "QCD")
+    pt_min_scale = config.get("pt_min_scale", 450.0)
+    regions_to_fit = config.get("regions_to_fit", ["bb"])
+    rho_scaling_max = config.get("rho_scaling_max", -2.1)
+
+    # Process Definitions
+    sample_dict = config.get("process_groups")
+    for group in sample_dict.values():
+        group["components"] = [tuple(c) for c in group["components"]]
+
+    # ---------------------------------------------------------
+    # 3. OBSERVABLES & SYSTEMATICS
+    # ---------------------------------------------------------
+    msd_cfg = config["observable"]
+    msdbins = np.linspace(msd_cfg["min"], msd_cfg["max"], msd_cfg["nbins"] + 1)
+    msd = rl.Observable(msd_cfg["name"], msdbins)
+
+    cats_cfg = config["categories"]
+    cats = list(cats_cfg.keys())
+    cats.remove("mucr") #necessary since all categories get the same treatment
+
+    # TT Independent Parameters
     tqqeffSF = rl.IndependentParameter(f'tqqeffSF_{year}', 1., -50, 50)
     tqqeffBCSF = rl.IndependentParameter(f'tqqeffBCSF_{year}', 1., -50, 50)
     tqqnormSF = rl.IndependentParameter(f'tqqnormSF_{year}', 1., -50, 50)
 
-    sys_lumi_uncor = rl.NuisanceParameter(f'CMS_lumi_13p6TeV_{year[:4]}', 'lnN')
+    do_muon_CR = config.get("do_muon_CR", False)
 
-    #Systematics 
-    sys_dict = {}
-    sys_dict['pileup'] = rl.NuisanceParameter(f'CMS_PU_{year}', 'lnN')
+    # Standard Luminosity Uncertainty
+    sys_lumi_uncor = rl.NuisanceParameter(f"CMS_lumi_13TeV_{year[:4]}", "lnN")
 
-    sys_dict['JES'] = rl.NuisanceParameter(f'CMS_scale_j_{year}', 'lnN')
-    sys_dict['JER'] = rl.NuisanceParameter(f'CMS_res_j_{year}', 'lnN')
-    sys_dict['UES'] = rl.NuisanceParameter(f'CMS_ues_j_{year}', 'lnN')
+    do_systematics = config.get("do_systematics", False)
+    syst_map = {}
 
-    sys_dict['MuonPTScale'] = rl.NuisanceParameter(f'CMS_scale_m_{year}', 'lnN')
-    sys_dict['MuonPTRes'] = rl.NuisanceParameter(f'CMS_res_m_{year}', 'lnN')
+    if do_systematics:
+        # --- A. Experimental Systematics (from sys_dict) ---
+        available_exp_systs = {
+            "pileup": rl.NuisanceParameter(f"CMS_PU_{year}", "lnN"),
+            "JES": rl.NuisanceParameter(f"CMS_scale_j_{year}", "lnN"),
+            "JER": rl.NuisanceParameter(f"CMS_res_j_{year}", "lnN"),
+            "UES": rl.NuisanceParameter(f"CMS_ues_j_{year}", "lnN"),
+            "MuonPTScale": rl.NuisanceParameter(f"CMS_scale_m_{year}", "lnN"),
+            "MuonPTRes": rl.NuisanceParameter(f"CMS_res_m_{year}", "lnN"),
+            "btagSFb": rl.NuisanceParameter(f"CMS_btagSFb_{year}", "lnN"),
+            "btagSFc": rl.NuisanceParameter(f"CMS_btagSFc_{year}", "lnN"),
+            "btagSFlight": rl.NuisanceParameter(f"CMS_btagSFlight_{year}", "lnN"),
+            "btagSFb_correlated": rl.NuisanceParameter(f"CMS_btagSFb_correlated_{year}", "lnN"),
+            "btagSFc_correlated": rl.NuisanceParameter(f"CMS_btagSFc_correlated_{year}", "lnN"),
+            "btagSFlight_correlated": rl.NuisanceParameter(
+                f"CMS_btagSFlight_correlated_{year}", "lnN"
+            ),
+        }
 
-    sys_dict[f'btagSFb_{year}'] = rl.NuisanceParameter(f'CMS_btagSFb_{year}', 'lnN')
-    sys_dict[f'btagSFc_{year}'] = rl.NuisanceParameter(f'CMS_btagSFc_{year}', 'lnN')
-    sys_dict[f'btagSFlight_{year}'] = rl.NuisanceParameter(f'CMS_btagSFlight_{year}', 'lnN')
-    sys_dict['btagSFb_correlated'] = rl.NuisanceParameter(f'CMS_btagSFb_correlated_{year}', 'lnN')
-    sys_dict['btagSFc_correlated'] = rl.NuisanceParameter(f'CMS_btagSFc_correlated_{year}', 'lnN')
-    sys_dict['btagSFlight_correlated'] = rl.NuisanceParameter(f'CMS_btagSFlight_correlated_{year}', 'lnN')
+        # --- B. Theory Systematics (PDF, Scale, ISR/FSR) ---
+        theory_systs = {
+            "pdf_ggF": rl.NuisanceParameter("pdf_Higgs_ggF", "lnN"),
+            "pdf_VBF": rl.NuisanceParameter("pdf_Higgs_VBF", "lnN"),
+            "pdf_VH": rl.NuisanceParameter("pdf_Higgs_VH", "lnN"),
+            "pdf_ttH": rl.NuisanceParameter("pdf_Higgs_ttH", "lnN"),
+            "scale_ggF": rl.NuisanceParameter("QCDscale_ggF", "lnN"),
+            "scale_VBF": rl.NuisanceParameter("QCDscale_VBF", "lnN"),
+            "scale_VH": rl.NuisanceParameter("QCDscale_VH", "lnN"),
+            "scale_ttH": rl.NuisanceParameter("QCDscale_ttH", "lnN"),
+            "isr_ggF": rl.NuisanceParameter("ISRPartonShower_ggF", "lnN"),
+            "isr_VBF": rl.NuisanceParameter("ISRPartonShower_VBF", "lnN"),
+            "isr_VH": rl.NuisanceParameter("ISRPartonShower_VH", "lnN"),
+            "isr_ttH": rl.NuisanceParameter("ISRPartonShower_ttH", "lnN"),
+            "fsr_ggF": rl.NuisanceParameter("FSRPartonShower_ggF", "lnN"),
+            "fsr_VBF": rl.NuisanceParameter("FSRPartonShower_VBF", "lnN"),
+            "fsr_VH": rl.NuisanceParameter("FSRPartonShower_VH", "lnN"),
+            "fsr_ttH": rl.NuisanceParameter("FSRPartonShower_ttH", "lnN"),
+        }
 
-    exp_systs = [
-        'pileup', 
-        'JES', 'JER', 'JER',
-        f'btagSFb_{year}',
-        f'btagSFc_{year}',
-        f'btagSFlight_{year}'
-        'btagSFb_correlated',
-        'btagSFc_correlated',
-        'btagSFlight_correlated',
-        'MuonPTScale', 'MuonPTRes'
-    ]
+        # Combine all available systematics into one map
+        all_available = {**available_exp_systs, **theory_systs}
 
-    pdf_Higgs_ggF = rl.NuisanceParameter('pdf_Higgs_ggF','lnN')
-    pdf_Higgs_VBF = rl.NuisanceParameter('pdf_Higgs_VBF','lnN')
-    pdf_Higgs_VH  = rl.NuisanceParameter('pdf_Higgs_VH','lnN')
-    pdf_Higgs_ttH = rl.NuisanceParameter('pdf_Higgs_ttH','lnN')
+        # Pull active list from JSON config
+        active_list = config.get("active_systematics", [])
+        for name in active_list:
+            if name in all_available:
+                syst_map[name] = all_available[name]
+            else:
+                print(f"Warning: Systematic {name} requested in JSON but not defined in script.")
 
-    scale_ggF = rl.NuisanceParameter('QCDscale_ggF', 'lnN')
-    scale_VBF = rl.NuisanceParameter('QCDscale_VBF', 'lnN')
-    scale_VH = rl.NuisanceParameter('QCDscale_VH', 'lnN')
-    scale_ttH = rl.NuisanceParameter('QCDscale_ttH', 'lnN')
-
-    isr_ggF = rl.NuisanceParameter('ISRPartonShower_ggF', 'lnN')
-    isr_VBF = rl.NuisanceParameter('ISRPartonShower_VBF', 'lnN')
-    isr_VH = rl.NuisanceParameter('ISRPartonShower_VH', 'lnN')
-    isr_ttH = rl.NuisanceParameter('ISRPartonShower_ttH', 'lnN')
-
-    fsr_ggF = rl.NuisanceParameter('FSRPartonShower_ggF', 'lnN')
-    fsr_VBF = rl.NuisanceParameter('FSRPartonShower_VBF', 'lnN')
-    fsr_VH = rl.NuisanceParameter('FSRPartonShower_VH', 'lnN')
-    fsr_ttH = rl.NuisanceParameter('FSRPartonShower_ttH', 'lnN')
-
+    # ---------------------------------------------------------
+    # 4. QCD ESTIMATION LOOP
+    # ---------------------------------------------------------
+    tf_params = {}
     validbins = {}
 
-    msd_cfg = setup["observable"]
-    msdbins = np.linspace(msd_cfg["min"], msd_cfg["max"], msd_cfg["nbins"]+1)
-    msd = rl.Observable(msd_cfg["name"], msdbins)
-
-    cats = [
-        'ggf',
-        'vh',
-        'vbf' 
-        ]
-
-    # Build qcd MC pass+fail model and fit to polynomial
-    tf_params = {}
     for cat in cats:
-
-        ptbins = np.array(cats_cfg[cat]["bins"])
-        if "vbf" in cat:
-            ptbins = np.array(cats_cfg["vbf"]["bins_pt"])
-
+        if "bins_pt" in cats_cfg[cat]:
+            ptbins = np.array(cats_cfg[cat]["bins_pt"])
+        else:
+            ptbins = np.array(cats_cfg[cat]["bins"])
         npt = len(ptbins) - 1
 
-        # here we derive these all at once with 2D array                            
-        ptpts, msdpts = np.meshgrid(ptbins[:-1] + 0.3 * np.diff(ptbins), msdbins[:-1] + 0.5 * np.diff(msdbins), indexing='ij')
-        rhopts = 2*np.log(msdpts/ptpts)
-        ptscaled = (ptpts - 450.) / (1200. - 450.)
-        rhoscaled = (rhopts - (-6.)) / ((-2.1) - (-6.))
-        validbins[cat] = (rhoscaled >= 0.) & (rhoscaled <= 1.)
-        rhoscaled[~validbins[cat]] = 1    
+        # Grid Setup
+        ptpts, msdpts = np.meshgrid(
+            ptbins[:-1] + 0.3 * np.diff(ptbins),
+            msdbins[:-1] + 0.5 * np.diff(msdbins),
+            indexing="ij",
+        )
+        rhopts = 2 * np.log(msdpts / ptpts)
+        ptscaled = (ptpts - pt_min_scale) / (1200.0 - pt_min_scale)
+        rhoscaled = (rhopts - (-6.0)) / (rho_scaling_max - (-6.0))
+
+        validbins[cat] = (rhoscaled >= 0.0) & (rhoscaled <= 1.0)
+        rhoscaled[~validbins[cat]] = 1
 
         tf_params[cat] = {}
         fitfailed_qcd = {}
-        for reg in ["bb","cc"]:
-            fitfailed_qcd[reg] = 0
 
+        for reg in regions_to_fit:
+            fitfailed_qcd[reg] = 0
             while fitfailed_qcd[reg] < 5:
-            
-                qcdmodel = rl.Model(f'qcdmodel_{cat}_{reg}')
-                qcdpass, qcdfail = 0., 0.
+                qcdmodel = rl.Model(f"qcdmodel_{cat}_{reg}")
+                qcdpass, qcdfail = 0.0, 0.0
 
                 for ptbin in range(npt):
-                    mjjbin = 0
-                    if 'hi' in cat:
-                        mjjbin = 1
+                    binindex = ptbin
+                    if analysis == "vbf" and "hi" in cat:
+                        binindex = 1
 
-                    failCh = rl.Channel('ptbin%d%s%s%s%s' % (ptbin, cat, 'fail',year,reg))
-                    passCh = rl.Channel('ptbin%d%s%s%s%s' % (ptbin, cat, 'pass',year,reg))
+                    failCh = rl.Channel(f"ptbin{ptbin}{cat}fail{year}{reg}")
+                    passCh = rl.Channel(f"ptbin{ptbin}{cat}pass{year}{reg}")
                     qcdmodel.addChannel(failCh)
                     qcdmodel.addChannel(passCh)
 
-                    binindex = ptbin
-                    if 'vbf' in cat:
-                        binindex = mjjbin
+                    failTempl = get_template(
+                        infile_path, qcd_tf_proc, "fail_", binindex + 1, cat, msd, "nominal"
+                    )
+                    passTempl = get_template(
+                        infile_path, qcd_tf_proc, f"pass_{reg}_", binindex + 1, cat, msd, "nominal"
+                    )
 
-                    # QCD templates from file                           
-                    failTempl = get_template(year, tag, 'QCD', 'fail_', binindex+1, cat[:3]+'_', obs=msd, syst='nominal')
-                    passTempl = get_template(year, tag, 'QCD', f'pass_{reg}_', binindex+1, cat[:3]+'_', obs=msd, syst='nominal')
-                    
                     failCh.setObservation(failTempl, read_sumw2=True)
                     passCh.setObservation(passTempl, read_sumw2=True)
-
                     qcdfail += failCh.getObservation()[0].sum()
                     qcdpass += passCh.getObservation()[0].sum()
 
                 qcdeff = qcdpass / qcdfail
-                print('Inclusive P/F from Monte Carlo = ' + str(qcdeff))
+                print(f"Inclusive P/F ({cat} {reg}) = {qcdeff:.4f}")
 
+                # Initial Values Loading
+                initF = initvals_dir / f"initial_vals_{cat}_{reg}.json"
+                initial_vals = None
+                if initF.exists():
+                    with initF.open() as f:
+                        loaded = np.array(json.load(f)["initial_vals"])
+                    if (loaded.shape[0] - 1 == args.mc_pt_order) and (
+                        loaded.shape[1] - 1 == args.mc_rho_order
+                    ):
+                        initial_vals = loaded
+                    else:
+                        print(f"Order Mismatch for {reg}. Resetting.")
 
-                # initial values                                         
-                initF = f"results/{tag}/{year}/initial_vals/initial_vals_{cat}_{reg}.json"                       
-                print('Initial fit values read from file initial_vals*')
-                with open(initF) as f:
-                    initial_vals = np.array(json.load(f)['initial_vals'])
+                if initial_vals is None:
+                    initial_vals = np.full((args.mc_pt_order + 1, args.mc_rho_order + 1), 1.0)
 
-                print("TFpf order " + str(initial_vals.shape[0]-1) + " in pT, " + str(initial_vals.shape[1]-1) + " in rho")
-                tf_MCtempl = rl.BasisPoly("tf_MCtempl_"+cat+reg+year,
-                                        (initial_vals.shape[0]-1,initial_vals.shape[1]-1),
-                                        ['pt', 'rho'], 
-                                        basis='Bernstein',
-                                        init_params=initial_vals,
-                                        limits=(0, 10), 
-                                        coefficient_transform=None)
-                
+                tf_MCtempl = rl.BasisPoly(
+                    f"tf_MCtempl_{cat}{reg}{year}",
+                    (args.mc_pt_order, args.mc_rho_order),
+                    ["pt", "rho"],
+                    basis="Bernstein",
+                    init_params=initial_vals,
+                    limits=(0, 10),
+                )
+
                 tf_MCtempl_params = qcdeff * tf_MCtempl(ptscaled, rhoscaled)
 
-
                 for ptbin in range(npt):
-                    mjjbin = 0
-                    if 'hi' in cat:
-                        mjjbin = 1
+                    failCh = qcdmodel[f"ptbin{ptbin}{cat}fail{year}{reg}"]
+                    passCh = qcdmodel[f"ptbin{ptbin}{cat}pass{year}{reg}"]
 
-                    failCh = qcdmodel['ptbin%d%sfail%s%s' % (ptbin, cat, year, reg)]
-                    passCh = qcdmodel['ptbin%d%spass%s%s' % (ptbin, cat, year, reg)]
                     failObs = failCh.getObservation()[0]
-                    
                     qcdparams = np.array(
-                            [
-                                rl.IndependentParameter('qcdparam_ptbin%d%s%s%s_%d' % (ptbin, cat, year, reg, i), 0) 
-                                for i in range(msd.nbins)
-                            ]
-                        )
-                    sigmascale = 10.
+                        [
+                            rl.IndependentParameter(f"qcdparam_ptbin{ptbin}{cat}{year}{reg}_{i}", 0)
+                            for i in range(msd.nbins)
+                        ]
+                    )
                     scaledparams = (
-                            failObs 
-                            * (1 + sigmascale/np.maximum(1., np.sqrt(failObs))) ** qcdparams
-                        )
-                    
+                        failObs * (1 + 10.0 / np.maximum(1.0, np.sqrt(failObs))) ** qcdparams
+                    )
+
                     fail_qcd = rl.ParametericSample(
-                                    'ptbin%d%sfail%s%s_qcd' % (ptbin, cat, year, reg), 
-                                    rl.Sample.BACKGROUND, 
-                                    msd, 
-                                    scaledparams
-                                )
+                        f"ptbin{ptbin}{cat}fail{year}{reg}_qcd",
+                        rl.Sample.BACKGROUND,
+                        msd,
+                        scaledparams,
+                    )
                     failCh.addSample(fail_qcd)
+
                     pass_qcd = rl.TransferFactorSample(
-                                    'ptbin%d%spass%s%s_qcd' % (ptbin, cat, year, reg), 
-                                    rl.Sample.BACKGROUND, 
-                                    tf_MCtempl_params[ptbin, :], 
-                                    fail_qcd
-                                )
+                        f"ptbin{ptbin}{cat}pass{year}{reg}_qcd",
+                        rl.Sample.BACKGROUND,
+                        tf_MCtempl_params[ptbin, :],
+                        fail_qcd,
+                    )
                     passCh.addSample(pass_qcd)
-                    
-                    # drop bins outside rho validity  
+
                     failCh.mask = validbins[cat][ptbin]
                     passCh.mask = validbins[cat][ptbin]
 
-                qcdfit_ws = ROOT.RooWorkspace('w')
-
+                # Fit
+                qcdfit_ws = ROOT.RooWorkspace("w")
                 simpdf, obs = qcdmodel.renderRoofit(qcdfit_ws)
-                qcdfit = simpdf.fitTo(obs,
-                                    ROOT.RooFit.Extended(True),
-                                    ROOT.RooFit.SumW2Error(True),
-                                    ROOT.RooFit.Strategy(2),
-                                    ROOT.RooFit.Save(),
-                                    ROOT.RooFit.Minimizer('Minuit2', 'migrad'),
-                                    ROOT.RooFit.PrintLevel(0),
-                                )
-                qcdfit_ws.add(qcdfit)
-                qcdfit_ws.writeToFile(os.path.join(str(datacard_dir), f'testModel_qcdfit_{cat}_{reg}_{year}.root'))
+                qcdfit = simpdf.fitTo(
+                    obs,
+                    ROOT.RooFit.Extended(True),
+                    ROOT.RooFit.SumW2Error(True),
+                    ROOT.RooFit.Strategy(2),
+                    ROOT.RooFit.Save(),
+                    ROOT.RooFit.PrintLevel(-1),
+                )
 
-                # Set parameters to fitted values  
-                allparams = dict(zip(qcdfit.nameArray(), qcdfit.valueArray()))
-                pvalues = []
-                for i, p in enumerate(tf_MCtempl.parameters.reshape(-1)):
-                    p.value = allparams[p.name]
-                    pvalues += [p.value]
-                
                 if qcdfit.status() != 0:
                     fitfailed_qcd[reg] += 1
-
-                    new_values = np.array(pvalues).reshape(tf_MCtempl.parameters.shape)
-                    print(f'Could not fit qcd, category: {cat}, new values: {new_values.tolist()}')
-                    with open(initF, "w") as outfile:
-                        json.dump({"initial_vals":new_values.tolist()},outfile)
-
                 else:
+                    allparams = dict(zip(qcdfit.nameArray(), qcdfit.valueArray()))
+                    pvalues = [allparams[p.name] for p in tf_MCtempl.parameters.reshape(-1)]
+                    new_values = np.array(pvalues).reshape(tf_MCtempl.parameters.shape)
+                    with initF.open("w") as outfile:
+                        json.dump({"initial_vals": new_values.tolist()}, outfile)
                     break
 
-            if fitfailed_qcd[reg] >=5:
-                raise RuntimeError(f'Could not fit qcd for {reg} after 5 tries')
+            if fitfailed_qcd[reg] >= 5:
+                raise RuntimeError(f"Could not fit QCD for {cat} {reg} after 5 tries!")
 
-            print("Fitted qcd for category " + cat)    
+            plot_mctf(
+                tf_MCtempl,
+                msdbins,
+                f"{cat}_{reg}",
+                year,
+                tag,
+                str(working_dir),
+                pt_min=pt_min_scale,  # <--- Pass from config
+                rho_max=rho_scaling_max,  # <--- Pass from config (-1.0 for ZG)
+            )
 
             param_names = [p.name for p in tf_MCtempl.parameters.reshape(-1)]
-            decoVector = rl.DecorrelatedNuisanceVector.fromRooFitResult(tf_MCtempl.name + '_deco', qcdfit, param_names)
-            tf_MCtempl.parameters = decoVector.correlated_params.reshape(tf_MCtempl.parameters.shape)
+            decoVector = rl.DecorrelatedNuisanceVector.fromRooFitResult(
+                tf_MCtempl.name + "_deco", qcdfit, param_names
+            )
+            tf_MCtempl.parameters = decoVector.correlated_params.reshape(
+                tf_MCtempl.parameters.shape
+            )
 
-            # Blinded TF Residual
-            tf_dataResidual = rl.BasisPoly("tf_dataResidual_"+year+cat+reg,
-                                        (0,0), 
-                                        ['pt', 'rho'], 
-                                        basis='Bernstein',
-                                        init_params=np.array([[1]]),
-                                        limits=(0,20), 
-                                        coefficient_transform=None)
+            # Residual
+            resid_init = np.full((args.res_pt_order + 1, args.res_rho_order + 1), 1.0)
+            tf_dataResidual = rl.BasisPoly(
+                f"tf_dataResidual_{year}{cat}{reg}",
+                (args.res_pt_order, args.res_rho_order),
+                ["pt", "rho"],
+                basis="Bernstein",
+                init_params=resid_init,
+                limits=(0, 20),
+            )
+            tf_params[cat][reg] = (
+                qcdeff * tf_MCtempl(ptscaled, rhoscaled) * tf_dataResidual(ptscaled, rhoscaled)
+            )
 
-            tf_params[cat][reg] = qcdeff * tf_MCtempl(ptscaled, rhoscaled) * tf_dataResidual(ptscaled, rhoscaled)
-
-    # build actual fit model now
-    model = rl.Model('testModel_'+year)
-
-    # exclude QCD from MC samps
-    samps = ['ggF','VBF','WH','ZH','ttH','Wjets','Zjetsc','Zjetslight','Zjetsbb','ttbar','singlet','VV','EWKW','EWKZc','EWKZlight','EWKZbb']
-    sigs = ['ggF','VBF','WH','ZH']
+    # ---------------------------------------------------------
+    # 5. MAIN MODEL BUILDING
+    # ---------------------------------------------------------
+    model = rl.Model(f"{analysis}Model_{year}")
 
     for cat in cats:
+        if "bins_pt" in cats_cfg[cat]:
+            ptbins = np.array(cats_cfg[cat]["bins_pt"])
+        else:
+            ptbins = np.array(cats_cfg[cat]["bins"])
 
-        ptbins = np.array(cats_cfg[cat]["bins"])
-        if "vbf" in cat:
-            ptbins = np.array(cats_cfg["vbf"]["bins_pt"])
+        for ptbin in range(len(ptbins) - 1):
+            binindex = ptbin
+            # Handle the VBF hi/lo binning logic
+            if analysis == "vbf" and "hi" in cat:
+                binindex = 1
 
-        npt = len(ptbins) - 1
+            regions = [f"pass_{r}_" for r in regions_to_fit] + ["fail_"]
 
-        for ptbin in range(npt):
-            mjjbin = 0
-            if 'hi' in cat:
-                mjjbin = 1
-
-            for region in ['pass_bb_', 'pass_cc_', 'fail_']:
-
-                binindex = ptbin
-                if 'vbf' in cat:
-                    binindex = mjjbin
-
-                ch_name = 'ptbin%d%s%s%s' % (ptbin, cat, region.replace("_", ""), year)
-                total_model_bins.append(ch_name)
-
+            for region in regions:
+                ch_name = f"ptbin{ptbin}{cat}{region.replace('_', '')}{year}"
                 ch = rl.Channel(ch_name)
                 model.addChannel(ch)
 
-                templates = {}
-            
-                for sName in samps:
+                for proc_name, info in sample_dict.items():
+                    # proc_name is e.g., 'ggF', 'VBF', 'ttbar'
+                    templ = get_merged_template(
+                        infile_path, info["components"], region, binindex + 1, cat, msd
+                    )
+                    nominal = templ[0]
 
-                    templates[sName] = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='nominal')
-                    nominal = templates[sName][0]
-
-                    if(badtemp_ma(nominal)):
-                        print("Sample {} is too small, skipping".format(ch.name + '_' + sName))
+                    if badtemplate(nominal):
+                        print(
+                            f"Warning: Skipping template for {proc_name} in {ch_name} (failed badtemplate check)"
+                        )
                         continue
 
-                    # expectations
-                    templ = templates[sName]
+                    stype = rl.Sample.SIGNAL if info["is_signal"] else rl.Sample.BACKGROUND
+                    sample = rl.TemplateSample(ch.name + "_" + proc_name, stype, templ)
 
-                    if sName in sigs:
-                        stype = rl.Sample.SIGNAL
-                    else:
-                        stype = rl.Sample.BACKGROUND
-                    
-                    sample = rl.TemplateSample(
-                                    ch.name + '_' + sName, 
-                                    stype, 
-                                    templ, 
-                                    force_positive=True
-                                )
+                    # Apply Luminosity
+                    sample.setParamEffect(
+                        sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2023"])
+                    )
 
-                    sample.setParamEffect(sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2023"]))
                     if do_systematics:
+                        # 1. Automatic MC Statistical Uncertainties (Barlow-Beeston Lite)
+                        # (Already handled inside add_systematics in card_utils.py)
 
-                        sample.autoMCStats(lnN=True)    
+                        # 2. Experimental Systematics (Shapes from ROOT file)
+                        # Filter out theory systematics so they aren't double-applied
+                        exp_syst_map = {
+                            k: v
+                            for k, v in syst_map.items()
+                            if not k.startswith(("pdf_", "scale_", "isr_", "fsr_"))
+                        }
 
-                        for sys in exp_systs:
-                            syst_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst=sys+'Up')[0]
-                            syst_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst=sys+'Down')[0]
+                        add_systematics(
+                            sample,
+                            nominal,
+                            exp_syst_map,
+                            infile_path,
+                            year,
+                            info["components"],
+                            region,
+                            binindex + 1,
+                            cat,
+                            msd,
+                        )
 
-                            eff_up = shape_to_num(syst_up,nominal)
-                            eff_do = shape_to_num(syst_do,nominal)
+                        # 3. Theory Systematics (Process-Specific Logic)
 
-                            sample.setParamEffect(sys_dict[sys], eff_up, eff_do)
+                        # --- VBF / EWKZ Scale ---
+                        if proc_name == "VBF" or proc_name == "EWKZ":
+                            scale_up = get_merged_template(
+                                infile_path,
+                                info["components"],
+                                region,
+                                binindex + 1,
+                                cat,
+                                msd,
+                                syst="scalevar_3ptUp",
+                            )[0]
+                            scale_do = get_merged_template(
+                                infile_path,
+                                info["components"],
+                                region,
+                                binindex + 1,
+                                cat,
+                                msd,
+                                syst="scalevar_3ptDown",
+                            )[0]
+                            sample.setParamEffect(
+                                syst_map["scale_VBF"],
+                                np.sum(scale_up) / np.sum(nominal),
+                                np.sum(scale_do) / np.sum(nominal),
+                            )
 
-                        if "EWKZ" in sName:
+                        # --- Higgs Signal Theory (PDF, ISR/FSR, Scale) ---
+                        if proc_name in ["ggF", "VBF", "WH", "ZH", "ggZH", "ttH"]:
+                            # Mapping logic: if proc is WH/ZH/ggZH, use "VH" for the nuisance name
+                            proc_map_name = "VH" if proc_name in ["WH", "ZH", "ggZH"] else proc_name
 
-                            scale_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_7ptUp')[0]
-                            scale_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_7ptDown')[0]
+                            for s_key, s_name in [
+                                ("pdf", "PDF_weight"),
+                                ("fsr", "FSRPartonShower"),
+                                ("isr", "ISRPartonShower"),
+                            ]:
+                                s_up = get_merged_template(
+                                    infile_path,
+                                    info["components"],
+                                    region,
+                                    binindex + 1,
+                                    cat,
+                                    msd,
+                                    syst=f"{s_name}Up",
+                                )[0]
+                                s_do = get_merged_template(
+                                    infile_path,
+                                    info["components"],
+                                    region,
+                                    binindex + 1,
+                                    cat,
+                                    msd,
+                                    syst=f"{s_name}Down",
+                                )[0]
 
-                            eff_scale_up = np.sum(scale_up)/np.sum(nominal)
-                            eff_scale_do = np.sum(scale_do)/np.sum(nominal)
+                                # Look up using the mapped name (e.g., pdf_VH)
+                                syst_obj = syst_map.get(f"{s_key}_{proc_map_name}")
+                                if syst_obj:
+                                    sample.setParamEffect(
+                                        syst_obj,
+                                        np.sum(s_up) / np.sum(nominal),
+                                        np.sum(s_do) / np.sum(nominal),
+                                    )
 
-                            sample.setParamEffect(scale_VBF,eff_scale_up,eff_scale_do)
-
-
-                        # QCD scale and PDF uncertainties on Higgs signal    
-                        elif sName in ['ggF','VBF','WH','ZH','ggZH','ttH']:
-                            
-                            fsr_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='FSRPartonShowerUp')[0]
-                            fsr_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='FSRPartonShowerDown')[0]
-                            eff_fsr_up = np.sum(fsr_up)/np.sum(nominal)
-                            eff_fsr_do = np.sum(fsr_do)/np.sum(nominal)
-
-                            isr_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='ISRPartonShowerUp')[0]
-                            isr_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='ISRPartonShowerDown')[0]
-                            eff_isr_up = np.sum(isr_up)/np.sum(nominal)
-                            eff_isr_do = np.sum(isr_do)/np.sum(nominal)
-
-                            pdf_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='PDF_weightUp')[0]
-                            pdf_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='PDF_weightDown')[0]
-                            eff_pdf_up = np.sum(pdf_up)/np.sum(nominal)
-                            eff_pdf_do = np.sum(pdf_do)/np.sum(nominal)
-                            
-                            if sName == 'ggF':
-                                scale_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_7ptUp')[0]
-                                scale_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_7ptDown')[0]
-                                
-                                eff_scale_up = np.sum(scale_up)/np.sum(nominal)
-                                eff_scale_do = np.sum(scale_do)/np.sum(nominal)
-
-                                sample.setParamEffect(scale_ggF,eff_scale_up,eff_scale_do)
-                                sample.setParamEffect(pdf_Higgs_ggF,eff_pdf_up,eff_pdf_do)
-                                sample.setParamEffect(fsr_ggF,eff_fsr_up,eff_fsr_do)
-                                sample.setParamEffect(isr_ggF,eff_isr_up,eff_isr_do)
-
-                            elif sName == 'VBF':
-                                scale_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_3ptUp')[0]
-                                scale_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_3ptDown')[0]
-
-                                eff_scale_up = np.sum(scale_up)/np.sum(nominal)
-                                eff_scale_do = np.sum(scale_do)/np.sum(nominal)
-
-                                sample.setParamEffect(scale_VBF,eff_scale_up,eff_scale_do)
-                                sample.setParamEffect(pdf_Higgs_VBF,eff_pdf_up,eff_pdf_do)
-                                sample.setParamEffect(fsr_VBF,eff_fsr_up,eff_fsr_do)
-                                sample.setParamEffect(isr_VBF,eff_isr_up,eff_isr_do)
-                                    
-                            elif sName in ['WH','ZH','ggZH']:
-                                scale_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_3ptUp')[0]
-                                scale_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_3ptDown')[0]
-
-                                eff_scale_up = np.sum(scale_up)/np.sum(nominal)
-                                eff_scale_do = np.sum(scale_do)/np.sum(nominal)
-
-                                if eff_scale_do < 0:
-                                    eff_scale_do = eff_scale_up
-
-                                sample.setParamEffect(scale_VH,eff_scale_up,eff_scale_do)
-                                sample.setParamEffect(pdf_Higgs_VH,eff_pdf_up,eff_pdf_do)
-                                sample.setParamEffect(fsr_VH,eff_fsr_up,eff_fsr_do)
-                                sample.setParamEffect(isr_VH,eff_isr_up,eff_isr_do)
-                                
-                            elif sName == 'ttH':
-                                scale_up = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_7ptUp')[0]
-                                scale_do = get_template(year, tag, sName, region, binindex+1, cat[:3]+'_', obs=msd, syst='scalevar_7ptDown')[0]
-
-                                eff_scale_up = np.sum(scale_up)/np.sum(nominal)
-                                eff_scale_do = np.sum(scale_do)/np.sum(nominal)
-
-                                sample.setParamEffect(scale_ttH,eff_scale_up,eff_scale_do)
-                                sample.setParamEffect(pdf_Higgs_ttH,eff_pdf_up,eff_pdf_do)
-                                sample.setParamEffect(fsr_ttH,eff_fsr_up,eff_fsr_do)
-                                sample.setParamEffect(isr_ttH,eff_isr_up,eff_isr_do)
+                            # ggF specific Scale (7pt)
+                            if proc_name == "ggF":
+                                sc_up = get_merged_template(
+                                    infile_path,
+                                    info["components"],
+                                    region,
+                                    binindex + 1,
+                                    cat,
+                                    msd,
+                                    syst="scalevar_7ptUp",
+                                )[0]
+                                sc_do = get_merged_template(
+                                    infile_path,
+                                    info["components"],
+                                    region,
+                                    binindex + 1,
+                                    cat,
+                                    msd,
+                                    syst="scalevar_7ptDown",
+                                )[0]
+                                sample.setParamEffect(
+                                    syst_map["scale_ggF"],
+                                    np.sum(sc_up) / np.sum(nominal),
+                                    np.sum(sc_do) / np.sum(nominal),
+                                )
 
                     ch.addSample(sample)
 
-                # END loop over MC samples 
-
-                data_obs = get_template(year, tag, 'Jetdata', region, binindex+1, cat[:3]+'_', obs=msd, syst='nominal')
-
+                # Data
+                data_obs = get_template(
+                    infile_path, "data_obs", region, binindex + 1, cat, msd, syst="nominal"
+                )
                 ch.setObservation(data_obs[0:3])
 
-    #Add data-driven qcd to model
+    # ---------------------------------------------------------
+    # 6. ADD DATA-DRIVEN QCD
+    # ---------------------------------------------------------
+    print("Adding Data-Driven QCD Background...")
     for cat in cats:
+        if "bins_pt" in cats_cfg[cat]:
+            ptbins = np.array(cats_cfg[cat]["bins_pt"])
+        else:
+            ptbins = np.array(cats_cfg[cat]["bins"])
 
-        ptbins = np.array(cats_cfg[cat]["bins"])
-        if "vbf" in cat:
-            ptbins = np.array(cats_cfg["vbf"]["bins_pt"])
+        for ptbin in range(len(ptbins) - 1):
+            failCh = model[f"ptbin{ptbin}{cat}fail{year}"]
 
-        npt = len(ptbins) - 1
-
-        for ptbin in range(npt):
-            mjjbin = 0
-            if 'hi' in cat:
-                mjjbin = 1
-
-            failCh = model['ptbin%d%sfail%s' % (ptbin, cat, year)]
-            passChbb = model['ptbin%d%spassbb%s' % (ptbin, cat, year)]
-            passChcc = model['ptbin%d%spasscc%s' % (ptbin, cat, year)]
-
-            qcdparams = np.array(
-                    [
-                        rl.IndependentParameter('qcdparam_ptbin%d%s%s_%d' % (ptbin, cat, year, i), 0) 
-                        for i in range(msd.nbins)
-                    ]
-                )
-            initial_qcd = failCh.getObservation().astype(float)  # was integer, and numpy complained about subtracting float from it
-            
-            if np.any(initial_qcd < 0.):
-                initial_qcd[np.where(initial_qcd<0)] = 0
-
+            initial_qcd = failCh.getObservation().astype(float)
             for sample in failCh:
                 initial_qcd -= sample.getExpectation(nominal=True)
+            initial_qcd[initial_qcd < 0] = 0
 
-            if np.any(initial_qcd < 0.):
-                initial_qcd[np.where(initial_qcd<0)] = 0
-                raise ValueError('initial_qcd negative for some bins..', initial_qcd)
-
-            sigmascale = 10  # to scale the deviation from initial                      
+            qcdparams = np.array(
+                [
+                    rl.IndependentParameter(f"qcdparam_ptbin{ptbin}{cat}{year}_{i}", 0)
+                    for i in range(msd.nbins)
+                ]
+            )
             scaledparams = (
-                initial_qcd 
-                * (1 + sigmascale/np.maximum(1., np.sqrt(initial_qcd))) ** qcdparams
-                )
-
+                initial_qcd * (1 + 10.0 / np.maximum(1.0, np.sqrt(initial_qcd))) ** qcdparams
+            )
             fail_qcd = rl.ParametericSample(
-                                name='ptbin%d%sfail%s_qcd' % (ptbin, cat, year), 
-                                sampletype=rl.Sample.BACKGROUND, 
-                                observable=msd, 
-                                params=scaledparams
-                            )
+                f"ptbin{ptbin}{cat}fail{year}_qcd", rl.Sample.BACKGROUND, msd, scaledparams
+            )
             failCh.addSample(fail_qcd)
 
-            pass_qcdbb = rl.TransferFactorSample(
-                                name='ptbin%d%spassbb%s_qcd' % (ptbin, cat, year), 
-                                sampletype=rl.Sample.BACKGROUND, 
-                                transferfactor=tf_params[cat]['bb'][ptbin, :], 
-                                dependentsample=fail_qcd, 
-                                observable=msd
-                            )
-            passChbb.addSample(pass_qcdbb)
-
-            pass_qcdcc = rl.TransferFactorSample(
-                                name='ptbin%d%spasscc%s_qcd' % (ptbin, cat, year), 
-                                sampletype=rl.Sample.BACKGROUND, 
-                                transferfactor=tf_params[cat]['cc'][ptbin, :], 
-                                dependentsample=fail_qcd, 
-                                observable=msd
-                          )
-            passChcc.addSample(pass_qcdcc)
-
-
-            mask = validbins[cat][ptbin]
-            failCh.mask = mask
-            passChcc.mask = mask
-            passChbb.mask = mask
+            # Add QCD to all pass regions defined in JSON
+            for reg in regions_to_fit:
+                passCh = model[f"ptbin{ptbin}{cat}pass{reg}{year}"]
+                pass_qcd = rl.TransferFactorSample(
+                    f"ptbin{ptbin}{cat}pass{reg}{year}_qcd",
+                    rl.Sample.BACKGROUND,
+                    tf_params[cat][reg][ptbin, :],
+                    fail_qcd,
+                )
+                passCh.addSample(pass_qcd)
 
             if do_muon_CR:
+                passChbb = model[f"ptbin{ptbin}{cat}passbb{year}"]
+                passChcc = model[f"ptbin{ptbin}{cat}passcc{year}"]
                 
                 tqqpassbb = passChbb['ttbar']
                 tqqpasscc = passChcc['ttbar']
@@ -741,7 +602,6 @@ def ggfvbf_rhalphabet(args):
                 tqqpasscc.setParamEffect(tqqnormSF, 1 * tqqnormSF)
                 tqqfail.setParamEffect(tqqnormSF, 1 * tqqnormSF)
 
-
     muonCR_model = rl.Model('muonCR_'+year)
     if do_muon_CR:
         templates = {}
@@ -749,12 +609,11 @@ def ggfvbf_rhalphabet(args):
         for region in ['pass_bb_', 'pass_cc_', 'fail_']:
 
             ch_name = 'muonCR%s%s' % (region.replace("_", ""), year)
-            total_model_bins.append(ch_name)
 
             ch = rl.Channel(ch_name)
             muonCR_model.addChannel(ch)
             for sName in samps:
-                templates[sName] = one_bin(year, tag, sName, region, 1, 'mucr_', syst='nominal')
+                templates[sName] = one_bin(infile_path, sName, region, 1, 'mucr_', syst='nominal')
                 nominal = templates[sName][0]
 
                 if nominal < eps:
@@ -771,7 +630,7 @@ def ggfvbf_rhalphabet(args):
 
                 ch.addSample(sample)
                 
-            data_obs = one_bin(year, tag, 'Muondata', region, 1, 'mucr_', syst='nominal')
+            data_obs = one_bin(infile_path, 'Muondata', region, 1, 'mucr_', syst='nominal')
             ch.setObservation(data_obs, read_sumw2=True)
 
         tqqpassbb = muonCR_model['muonCRpassbb'+year+'_ttbar']
@@ -819,42 +678,67 @@ def ggfvbf_rhalphabet(args):
         stqqpasscc.setParamEffect(tqqnormSF, 1 * tqqnormSF)
         stqqfail.setParamEffect(tqqnormSF, 1 * tqqnormSF)
 
-                   
-    with open(os.path.join(str(datacard_dir), 'testModel_'+year+'.pkl'), 'wb') as fout:
+    # ---------------------------------------------------------
+    # 7. SAVE & RENDER
+    # ---------------------------------------------------------
+    with (datacard_dir / f"{analysis}Model_{year}.pkl").open("wb") as fout:
         pickle.dump(model, fout)
-
-    modeldir = os.path.join(str(datacard_dir), 'testModel_'+year)
+    modeldir = datacard_dir / f"{analysis}Model_{year}"
     muonCR_model.renderCombine(modeldir)
     model.renderCombine(modeldir)
+    print(f"Datacards saved to {modeldir}")
 
     out_cards = ""
-    for card in total_model_bins:
-        out_cards += f"{card}={card}.txt " 
-    t2w_cfg = "-P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel  --PO verbose --PO 'map=.*/ggF:rggF[1,-20,20]' --PO 'map=.*/VBF:rVBF[1,-20,20]' --PO 'map=.*/WH:rVH[1,-20,20]'  --PO 'map=.*/ZH:rVH[1,-20,20]'"
-    
-    
-    build_sh = os.path.join(modeldir, 'build.sh')
-    with open(build_sh, "w") as f:
+    for ch in model:
+        if "/" in ch.name:
+            continue
+        out_cards += f"{ch.name}={ch.name}.txt "
+        with Path(f"{modeldir}/{ch.name}.txt").open("a") as f:
+            f.write("\nqcd_norm rateParam * qcd 1.0 [0,20]\n")
+    if do_muon_CR:
+        for ch in muonCR_model:
+            if "/" in ch.name:
+                continue
+            out_cards += f"{ch.name}={ch.name}.txt "
+
+    # 1. Get Physics Model Config from JSON
+    # Default to simple signal strength 'r' if missing
+    pm_config = config.get(
+        "physics_model",
+        {
+            "model": "HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel",
+            "maps": ["map=.*/.*:r[1,-20,20]"],
+        },
+    )
+
+    model_cls = pm_config["model"]
+    maps = " ".join([f"--PO '{m}'" for m in pm_config["maps"]])
+
+    # Construct the text2workspace command dynamically
+    t2w_cfg = f"-P {model_cls} --PO verbose {maps}"
+
+    # Write the build script
+    with (modeldir / "build.sh").open("w") as f:
+        f.write("#!/bin/bash\n")
         f.write(f"combineCards.py {out_cards} > model_combined.txt\n")
-        f.write(f"text2workspace.py {t2w_cfg} model_combined.txt")
+        f.write(f"text2workspace.py {t2w_cfg} model_combined.txt -o workspace.root\n")
+        f.write("echo 'Workspace created: workspace.root'\n")
 
-if __name__ == '__main__':
+    (modeldir / "build.sh").chmod(0o755)
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--year", required=True)
+    parser.add_argument("--tag", required=True)
+    parser.add_argument("--indir", default=None)
     parser.add_argument(
-        "--year",
-        help="year",
-        type=str,
-        required=True,
-        choices=["2022", "2022EE", "2023", "2023BPix", "Run3"],
+        "--outdir", default="results", help="Output directory for datacards and plots"
     )
-    parser.add_argument(
-        "--tag",
-        help="tag",
-        type=str,
-        required=True,
-    )
-
+    parser.add_argument("--analysis", required=True)
+    parser.add_argument("--mc-rho-order", type=int, default=1)
+    parser.add_argument("--mc-pt-order", type=int, default=0)
+    parser.add_argument("--res-rho-order", type=int, default=0)
+    parser.add_argument("--res-pt-order", type=int, default=0)
     args = parser.parse_args()
-
-    ggfvbf_rhalphabet(args)
+    rhalphabet(args)

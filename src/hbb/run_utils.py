@@ -13,7 +13,7 @@ def parse_common_args(parser):
         help="year",
         type=str,
         required=True,
-        choices=["2022", "2022EE", "2023", "2023BPix"],
+        choices=["2022", "2022EE", "2023", "2023BPix", "2024"],
     )
     parser.add_argument(
         "--samples",
@@ -35,7 +35,8 @@ def parse_common_args(parser):
         choices=[
             "v12",
             "v12v2_private",
-            "v14_private"
+            "v14_private",
+            "v15"
         ],
         help="NanoAOD version",
     )

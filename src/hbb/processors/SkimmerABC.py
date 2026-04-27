@@ -60,7 +60,3 @@ class SkimmerABC(processor.ProcessorABC):
         else:
             ar = ak.fill_none(val[cut], np.nan)
             return ar
-
-    @abstractmethod
-    def add_weights(self) -> tuple[dict, dict]:
-        """Adds weights and variations, saves totals for all norm preserving weights and variations"""

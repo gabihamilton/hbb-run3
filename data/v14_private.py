@@ -136,7 +136,13 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 # "DYto2L-4Jets_MLL-50_3J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "DYto2L-4Jets_MLL-50_4J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
             },
-            "VGamma": {
+            "VGammaHad": {
+                "ZGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/ZGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "ZGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/ZGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "WGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "WGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/WGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+            },
+            "VGammaLep": {
                 "WGtoLNuG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/WGtoLNuG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WGtoLNuG-1Jets_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/WGtoLNuG-1Jets_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WGtoLNuG-1Jets_PTG-400to600": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/WGtoLNuG-1Jets_PTG-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
@@ -145,10 +151,12 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "ZGto2NuG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/ZGto2NuG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "ZGto2NuG-1Jets_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/ZGto2NuG-1Jets_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "ZGto2NuG-1Jets_PTG-600": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/ZGto2NuG-1Jets_PTG-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "ZGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/ZGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "ZGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/ZGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "WGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "WGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/WGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                # New DYGto2LG samples
+                "DYGto2LG-1Jets_MLL-50_PTG-10to100": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/DYGto2LG-1Jets_MLL-50_PTG-10to100_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/DYGto2LG-1Jets_MLL-50_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/DYGto2LG-1Jets_MLL-50_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-400to600": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/DYGto2LG-1Jets_MLL-50_PTG-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-600": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022/DYGto2LG-1Jets_MLL-50_PTG-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
             },
             "EWKV": {
                 "VBFZto2Q": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022/VBFZto2Q_TuneCP5_13p6TeV_madgraph-pythia8",
@@ -293,7 +301,13 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 # "DYto2L-4Jets_MLL-50_3J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "DYto2L-4Jets_MLL-50_4J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
             },
-            "VGamma": {
+            "VGammaHad": {
+                "ZGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/ZGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "ZGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/ZGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "WGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "WGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/WGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+            },
+            "VGammaLep": {
                 "WGtoLNuG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/WGtoLNuG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WGtoLNuG-1Jets_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/WGtoLNuG-1Jets_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WGtoLNuG-1Jets_PTG-400to600": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/WGtoLNuG-1Jets_PTG-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
@@ -302,10 +316,12 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "ZGto2NuG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/ZGto2NuG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "ZGto2NuG-1Jets_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/ZGto2NuG-1Jets_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "ZGto2NuG-1Jets_PTG-600": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/ZGto2NuG-1Jets_PTG-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "ZGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/ZGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "ZGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/ZGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "WGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "WGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/WGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                # New DYGto2LG samples
+                "DYGto2LG-1Jets_MLL-50_PTG-10to100": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/DYGto2LG-1Jets_MLL-50_PTG-10to100_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/DYGto2LG-1Jets_MLL-50_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/DYGto2LG-1Jets_MLL-50_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-400to600": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/DYGto2LG-1Jets_MLL-50_PTG-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-600": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2022EE/DYGto2LG-1Jets_MLL-50_PTG-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
             },
             "EWKV": {
                 "VBFZto2Q": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2022EE/VBFZto2Q_TuneCP5_13p6TeV_madgraph-pythia8",
@@ -489,7 +505,13 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 # "DYto2L-4Jets_MLL-50_3J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "DYto2L-4Jets_MLL-50_4J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
             },
-            "VGamma": {
+            "VGammaHad": {
+                "ZGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/ZGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "ZGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/ZGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "WGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "WGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/WGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+            },
+            "VGammaLep": {
                 "WGtoLNuG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/WGtoLNuG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WGtoLNuG-1Jets_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/WGtoLNuG-1Jets_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WGtoLNuG-1Jets_PTG-400to600": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/WGtoLNuG-1Jets_PTG-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
@@ -498,10 +520,12 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "ZGto2NuG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/ZGto2NuG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "ZGto2NuG-1Jets_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/ZGto2NuG-1Jets_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "ZGto2NuG-1Jets_PTG-600": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/ZGto2NuG-1Jets_PTG-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "ZGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/ZGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "ZGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/ZGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "WGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "WGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/WGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                # New DYGto2LG samples
+                "DYGto2LG-1Jets_MLL-50_PTG-10to100": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/DYGto2LG-1Jets_MLL-50_PTG-10to100_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/DYGto2LG-1Jets_MLL-50_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/DYGto2LG-1Jets_MLL-50_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-400to600": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/DYGto2LG-1Jets_MLL-50_PTG-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-600": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023/DYGto2LG-1Jets_MLL-50_PTG-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
             },
             "EWKV": {
                 "VBFZto2Q": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023/VBFZto2Q_TuneCP5_13p6TeV_madgraph-pythia8",
@@ -654,7 +678,13 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 # "DYto2L-4Jets_MLL-50_3J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
                 # "DYto2L-4Jets_MLL-50_4J": "/store/group/lpcpfnano/PFNano_Run3/25v2/",
             },
-            "VGamma": {
+            "VGammaHad": {
+                "ZGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/ZGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "ZGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/ZGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "WGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "WGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/WGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+            },
+            "VGammaLep": {
                 "WGtoLNuG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/WGtoLNuG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WGtoLNuG-1Jets_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/WGtoLNuG-1Jets_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "WGtoLNuG-1Jets_PTG-400to600": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/WGtoLNuG-1Jets_PTG-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
@@ -663,10 +693,12 @@ def get_datasets():  ## PRIVATE production with GloParTv2
                 "ZGto2NuG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/ZGto2NuG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "ZGto2NuG-1Jets_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/ZGto2NuG-1Jets_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
                 "ZGto2NuG-1Jets_PTG-600": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/ZGto2NuG-1Jets_PTG-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "ZGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/ZGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "ZGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/ZGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "WGto2QG-1Jets_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/WGto2QG-1Jets_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
-                "WGto2QG-1Jets_PTG-200": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/WGto2QG-1Jets_PTG-200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                # New DYGto2LG samples
+                "DYGto2LG-1Jets_MLL-50_PTG-10to100": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/DYGto2LG-1Jets_MLL-50_PTG-10to100_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-100to200": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/DYGto2LG-1Jets_MLL-50_PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-200to400": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/DYGto2LG-1Jets_MLL-50_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-400to600": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/DYGto2LG-1Jets_MLL-50_PTG-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
+                "DYGto2LG-1Jets_MLL-50_PTG-600": "/store/group/lpcpfnano/PFNano_Run3/25v2/lzygala/mc_2023BPix/DYGto2LG-1Jets_MLL-50_PTG-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
             },
             "EWKV": {
                 "VBFZto2Q": "/store/group/lpcpfnano/PFNano_Run3/25v2/roguljic/mc_2023BPix/VBFZto2Q_TuneCP5_13p6TeV_madgraph-pythia8",

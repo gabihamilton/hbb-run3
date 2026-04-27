@@ -89,6 +89,7 @@ def run(year: str, fileset: dict, args: argparse.Namespace):
         year=year,
         nano_version=args.nano_version,
         save_skim=args.save_skim,
+        evaluate_BDT=args.BDT,
         skim_outpath="outparquet",
         btag_eff=args.btag_eff,
         save_skim_nosysts=args.save_skim_nosysts,
@@ -195,7 +196,7 @@ if __name__ == "__main__":
         help="year",
         type=str,
         default="2023",
-        choices=["2022", "2022EE", "2023", "2023BPix"],
+        choices=["2022", "2022EE", "2023", "2023BPix", "2024"],
     )
     parser.add_argument("--starti", default=0, help="start index of files", type=int)
     parser.add_argument("--endi", default=-1, help="end index of files", type=int)
@@ -229,6 +230,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--yaml", default=None, help="yaml file with samples and subsamples", type=str
+    )
+    parser.add_argument(
+        "--BDT",
+        action="store_true",
+        help="Evaluate BDT scores and use for categorization",
+        default=False,
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(

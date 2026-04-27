@@ -10,7 +10,7 @@ from pathlib import Path
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
-os.environ["RUCIO_HOME"] = "/cvmfs/cms.cern.ch/rucio/x86_64/rhel7/py3/current"
+os.environ["RUCIO_HOME"] = "/cvmfs/cms.cern.ch/rucio/x86_64/rhel9/py3/current"
 
 
 def eos_rec_search(startdir, suffix, dirs):
@@ -93,7 +93,7 @@ def get_files(dataset, version):
             ],
             "regex_sites": None,
         }
-        if not "private" in version:
+        if "private" not in version:
             sites_cfg["whitelist_sites"] = ["T1_US_FNAL_Disk", "T3_US_FNALLPC"]
 
         files_rucio, sites = get_dataset_files(dataset, **sites_cfg, output="first")
