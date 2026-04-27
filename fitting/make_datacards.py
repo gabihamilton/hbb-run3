@@ -32,7 +32,7 @@ ROOT.gROOT.SetBatch(True)
 warnings.filterwarnings("ignore")
 rl.util.install_roofit_helpers()
 
-lumi_err = {"2022": 1.01, "2023": 1.02}
+lumi_err = {"2022": 1.01, "2023": 1.02, "2024": 1.02}  # 2024: TODO get official CMS value
 eps = 0.001 
 
 
@@ -89,7 +89,8 @@ def rhalphabet(args):
 
     cats_cfg = config["categories"]
     cats = list(cats_cfg.keys())
-    cats.remove("mucr") #necessary since all categories get the same treatment
+    if "mucr" in cats:
+        cats.remove("mucr") #necessary since all categories get the same treatment
 
     # TT Independent Parameters
     tqqeffSF = rl.IndependentParameter(f'tqqeffSF_{year}', 1., -50, 50)
@@ -375,7 +376,7 @@ def rhalphabet(args):
 
                     # Apply Luminosity
                     sample.setParamEffect(
-                        sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2023"])
+                        sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2024"])
                     )
 
                     if do_systematics:
@@ -623,7 +624,7 @@ def rhalphabet(args):
                 stype = rl.Sample.BACKGROUND
                 sample = rl.TemplateSample(ch.name + '_' + sName, stype, templates[sName])
 
-                sample.setParamEffect(sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2023"]))
+                sample.setParamEffect(sys_lumi_uncor, lumi_err[year[:4]] ** (LUMI[year[:4]] / LUMI["2022-2024"]))
                 if do_systematics:
 
                     sample.autoMCStats(lnN=True) 
@@ -684,7 +685,8 @@ def rhalphabet(args):
     with (datacard_dir / f"{analysis}Model_{year}.pkl").open("wb") as fout:
         pickle.dump(model, fout)
     modeldir = datacard_dir / f"{analysis}Model_{year}"
-    muonCR_model.renderCombine(modeldir)
+    if do_muon_CR:
+        muonCR_model.renderCombine(modeldir)
     model.renderCombine(modeldir)
     print(f"Datacards saved to {modeldir}")
 
