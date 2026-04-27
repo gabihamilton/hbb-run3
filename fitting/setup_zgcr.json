@@ -3,8 +3,8 @@
     "qcd_proc": "GJets",
     "pt_min_scale": 250.0,
     "regions_to_fit": ["bb", "cc"],
-    "do_systematics": false,
-    "active_systematics": ["pileup", "JES", "JER"],
+    "do_systematics": true,
+    "active_systematics": ["JMSunconstrained", "JMRunconstrained"],
     "rho_scaling_max": -1.0,
     "samples_qq": ["Wjets", "Zjets", "Wgamma", "Zgamma", "TTGamma"],
 
@@ -42,6 +42,10 @@
             "is_signal": false
         }
     },
+
+    "jmsr_processes": ["zgammabb"],
+    "jmsr_scale": 3,
+    "jmsr_smear": 0.2,
 
     "physics_model": {
         "model": "HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel",
