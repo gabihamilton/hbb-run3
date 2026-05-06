@@ -3,14 +3,16 @@
 plot_disc_zgcr.py
 -----------------
 Plot the modified TXbbXcc discriminant in the zgamma CR pre-selection region
-(inclusive, before pass/fail split) for Z(cc) and W(cs) processes.
+(inclusive, before pass/fail split) for Z(cc), Z(bb), W(cs), and QCD processes.
 
 Two discriminants are compared side by side:
   1. Current:  TXbbXcc       = (Xbb + Xcc) / (Xbb + Xcc + QCD)
   2. Modified: TXbbXcc_Wcs   = (Xbb + Xcc) / (Xbb + Xcc + QCD + Xcs)
 
 Z(cc)  = Zgamma + Zjets  with generator-level charm flavor (GenFlavor == 2)
+Z(bb)  = Zgamma + Zjets  with generator-level bb flavor    (GenFlavor == 1)
 W(cs)  = Wgamma + Wjets  with generator-level charm flavor (GenFlavor == 2)
+QCD    = GJets            (no GenFlavor cut)
 
 Usage
 -----
@@ -23,7 +25,7 @@ Usage
     python plot_disc_zgcr.py \\
         --year 2024 \\
         --tag 26Feb03 \\
-        --data-dir /eos/uscms/store/group/lpchbbrun3/skims/26Feb03/2024 \\
+        --data-dir /eos/uscms/store/group/lpchbbrun3/gmachado/Test_v15/2024 \\
         --outdir plots/disc
 """
 
@@ -50,33 +52,46 @@ plt.style.use(hep.style.CMS)
 # ---------------------------------------------------------------------------
 
 REGION = "control-zgamma"
+GENFLAVOR_BB    = 1          # GenFlavor == 1 → bb decay
 GENFLAVOR_CHARM = 2          # GenFlavor == 2 → c / cs decay
 NBINS = 40
 DISC_RANGE = (0.0, 1.0)
 
-# Processes and their display labels / colors
-PROCESSES = {
-    "Zgamma": {"gfilt": GENFLAVOR_CHARM, "label": r"$Z(\gamma) \to cc$", "color": "royalblue"},
-    "Zjets":  {"gfilt": GENFLAVOR_CHARM, "label": r"$Z(jets) \to cc$",   "color": "cornflowerblue"},
-    "Wgamma": {"gfilt": GENFLAVOR_CHARM, "label": r"$W(\gamma) \to cs$", "color": "tomato"},
-    "Wjets":  {"gfilt": GENFLAVOR_CHARM, "label": r"$W(jets) \to cs$",   "color": "salmon"},
-}
-
-# How to visually merge the four processes into two groups
+# Groups: each has a list of processes, an optional GenFlavor cut, and plot style.
+# gfilt=None means no GenFlavor cut (used for QCD).
 GROUPS = {
     "zcc": {
         "procs":  ["Zgamma", "Zjets"],
+        "gfilt":  GENFLAVOR_CHARM,
         "label":  r"$Z(cc)$  [Zgamma + Zjets]",
         "color":  "royalblue",
         "hatch":  None,
     },
+    "zbb": {
+        "procs":  ["Zgamma", "Zjets"],
+        "gfilt":  GENFLAVOR_BB,
+        "label":  r"$Z(bb)$  [Zgamma + Zjets]",
+        "color":  "navy",
+        "hatch":  "...",
+    },
     "wcs": {
         "procs":  ["Wgamma", "Wjets"],
+        "gfilt":  GENFLAVOR_CHARM,
         "label":  r"$W(cs)$  [Wgamma + Wjets]",
         "color":  "tomato",
         "hatch":  "///",
     },
+    "qcd": {
+        "procs":  ["GJets"],
+        "gfilt":  None,
+        "label":  r"QCD  [GJets]",
+        "color":  "forestgreen",
+        "hatch":  "xxx",
+    },
 }
+
+# Processes that carry a GenFlavor column in the parquet
+PROCS_WITH_GENFLAVOR = {"Zgamma", "Zjets", "Wgamma", "Wjets"}
 
 # Columns needed from parquet
 COLS_BASE = [
@@ -150,16 +165,22 @@ def fill_group_hists(
     disc_range: tuple = DISC_RANGE,
 ) -> dict[str, dict[str, np.ndarray]]:
     """
-    Build weighted histograms for both discriminants, per group (zcc / wcs).
+    Build weighted histograms for both discriminants, per group.
+
+    Each group's gfilt determines the GenFlavor cut:
+      - int  → keep only events with GenFlavor == gfilt
+      - None → no GenFlavor cut (used for QCD)
 
     Returns
     -------
     {group_name: {"current": values, "modified": values, "edges": edges}}
     """
     edges = np.linspace(disc_range[0], disc_range[1], nbins + 1)
-    result = {g: {"current": np.zeros(nbins), "modified": np.zeros(nbins)} for g in GROUPS}
+    result = {g: {"current": np.zeros(nbins), "modified": np.zeros(nbins), "edges": edges}
+              for g in GROUPS}
 
     for grp_name, grp_cfg in GROUPS.items():
+        gfilt = grp_cfg.get("gfilt")
         for proc in grp_cfg["procs"]:
             if proc not in events_dict:
                 print(f"  [WARN] process {proc!r} not found — skipping")
@@ -167,16 +188,21 @@ def fill_group_hists(
             df = events_dict[proc]
 
             sel = apply_preselection(df)
-            # keep only charm-flavor events
-            sel = sel & (df["GenFlavor"] == GENFLAVOR_CHARM)
+
+            # Apply GenFlavor cut only if requested and column exists
+            if gfilt is not None:
+                if "GenFlavor" in df.columns:
+                    sel = sel & (df["GenFlavor"] == gfilt)
+                else:
+                    print(f"  [WARN] {proc}: no GenFlavor column, skipping flavor cut")
+
             df = df[sel]
 
             if len(df) == 0:
-                print(f"  [WARN] {proc}: 0 events after pre-selection + flavor cut")
+                print(f"  [WARN] {proc} ({grp_name}): 0 events after selection")
                 continue
 
             w = df["finalWeight"].values
-
             disc_cur = df["FatJet0_ParTPXbbXcc"].values
             disc_mod = compute_disc_modified(df).values
 
@@ -186,10 +212,6 @@ def fill_group_hists(
             result[grp_name]["current"]  += h_cur
             result[grp_name]["modified"] += h_mod
             print(f"  {proc} ({grp_name}): {len(df)} events, sumw = {w.sum():.3g}")
-
-    # Store edges once
-    for g in GROUPS:
-        result[g]["edges"] = edges
 
     return result
 
@@ -224,11 +246,11 @@ def make_comparison_plot(
     outdir: Path,
 ) -> None:
     """
-    Two-panel figure:
+    Two-panel figure showing all four groups:
       left  — current TXbbXcc = (Xbb+Xcc)/(Xbb+Xcc+QCD)
       right — modified TXbbXcc_Wcs = (Xbb+Xcc)/(Xbb+Xcc+QCD+Xcs)
     """
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=False)
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=False)
     fig.subplots_adjust(wspace=0.32)
 
     disc_keys   = ["current",  "modified"]
@@ -249,7 +271,7 @@ def make_comparison_plot(
                 centres, h_norm,
                 width=width,
                 color=grp_cfg["color"],
-                alpha=0.55,
+                alpha=0.45,
                 hatch=grp_cfg["hatch"],
                 label=grp_cfg["label"],
                 edgecolor="none",
@@ -261,11 +283,13 @@ def make_comparison_plot(
                 linewidth=1.5,
             )
 
-        sep = separation(hists["zcc"][dkey], hists["wcs"][dkey])
+        sep_zcc_wcs = separation(hists["zcc"][dkey], hists["wcs"][dkey])
+        sep_zbb_qcd = separation(hists["zbb"][dkey], hists["qcd"][dkey])
         ax.text(
-            0.04, 0.97, f"Sep. = {sep:.3f}",
+            0.04, 0.97,
+            f"Sep. Z(cc)/W(cs) = {sep_zcc_wcs:.3f}\nSep. Z(bb)/QCD  = {sep_zbb_qcd:.3f}",
             transform=ax.transAxes, va="top", ha="left",
-            fontsize=11, color="black",
+            fontsize=10, color="black",
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.7),
         )
 
@@ -274,10 +298,10 @@ def make_comparison_plot(
         ax.set_ylabel("Normalised events / bin", fontsize=12)
         ax.set_xlim(*DISC_RANGE)
         ax.set_ylim(bottom=0)
-        ax.legend(fontsize=10, loc="upper center")
+        ax.legend(fontsize=9, loc="upper center")
         hep.cms.label("Preliminary", data=False, ax=ax, year=year, fontsize=12)
 
-    fname = outdir / f"disc_zcc_vs_wcs_{year}.png"
+    fname = outdir / f"disc_all_groups_{year}.png"
     fig.savefig(fname, bbox_inches="tight", dpi=150)
     plt.close(fig)
     print(f"\n  Saved: {fname}")
@@ -289,41 +313,40 @@ def make_ratio_plot(
     outdir: Path,
 ) -> None:
     """
-    Ratio Z(cc)/W(cs) for both discriminants on the same axis.
-    A ratio > 1 in a region means Z(cc) is more abundant there.
+    Two-panel ratio plot:
+      left  — Z(cc) / W(cs) for current and modified discriminants
+      right — Z(bb) / QCD   for current and modified discriminants
     """
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig.subplots_adjust(wspace=0.32)
 
+    ratio_pairs = [
+        ("zcc", "wcs", r"$Z(cc)$ / $W(cs)$  (shape-normalised)"),
+        ("zbb", "qcd", r"$Z(bb)$ / QCD  (shape-normalised)"),
+    ]
     styles = {
-        "current":  dict(color="navy",   ls="-",  lw=2,  label=r"Current $T_{Xbb+Xcc}$"),
-        "modified": dict(color="darkred", ls="--", lw=2,  label=r"Modified $T_{Xbb+Xcc}^{Wcs}$"),
+        "current":  dict(color="navy",    ls="-",  lw=2, label=r"Current $T_{Xbb+Xcc}$"),
+        "modified": dict(color="darkred", ls="--", lw=2, label=r"Modified $T_{Xbb+Xcc}^{Wcs}$"),
     }
 
-    for dkey, sty in styles.items():
-        edges = hists["zcc"]["edges"]
-        centres = 0.5 * (edges[:-1] + edges[1:])
+    for ax, (num_grp, den_grp, ylabel) in zip(axes, ratio_pairs):
+        edges = hists[num_grp]["edges"]
+        for dkey, sty in styles.items():
+            h_num = norm_hist(hists[num_grp][dkey])
+            h_den = norm_hist(hists[den_grp][dkey])
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = np.where(h_den > 0, h_num / h_den, np.nan)
+            ax.step(edges, np.append(ratio, ratio[-1]), where="post", **sty)
 
-        h_z = norm_hist(hists["zcc"][dkey])
-        h_w = norm_hist(hists["wcs"][dkey])
+        ax.axhline(1.0, color="gray", ls=":", lw=1)
+        ax.set_xlabel("Discriminant value", fontsize=12)
+        ax.set_ylabel(ylabel, fontsize=12)
+        ax.set_xlim(*DISC_RANGE)
+        ax.set_ylim(0, None)
+        ax.legend(fontsize=11)
+        hep.cms.label("Preliminary", data=False, ax=ax, year=year, fontsize=12)
 
-        with np.errstate(divide="ignore", invalid="ignore"):
-            ratio = np.where(h_w > 0, h_z / h_w, np.nan)
-
-        ax.step(
-            edges, np.append(ratio, ratio[-1]),
-            where="post",
-            **sty,
-        )
-
-    ax.axhline(1.0, color="gray", ls=":", lw=1)
-    ax.set_xlabel("Discriminant value", fontsize=12)
-    ax.set_ylabel(r"$Z(cc)$ / $W(cs)$  (shape-normalised)", fontsize=12)
-    ax.set_xlim(*DISC_RANGE)
-    ax.set_ylim(0, None)
-    ax.legend(fontsize=11)
-    hep.cms.label("Preliminary", data=False, ax=ax, year=year, fontsize=12)
-
-    fname = outdir / f"disc_ratio_zcc_over_wcs_{year}.png"
+    fname = outdir / f"disc_ratios_{year}.png"
     fig.savefig(fname, bbox_inches="tight", dpi=150)
     plt.close(fig)
     print(f"  Saved: {fname}")
@@ -334,15 +357,17 @@ def make_ratio_plot(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Discriminant comparison plot for Z(cc) and W(cs)")
+    parser = argparse.ArgumentParser(
+        description="Discriminant comparison plot for Z(cc), Z(bb), W(cs), QCD"
+    )
     parser.add_argument("--year",     required=True,
                         choices=["2022", "2022EE", "2023", "2023BPix", "2024"])
-    parser.add_argument("--tag",      required=True,
-                        help="Skim tag, e.g. 26Feb03")
+    parser.add_argument("--tag",      default=None,
+                        help="Skim tag, e.g. 26Feb03 (used only if --data-dir not given)")
     parser.add_argument("--outdir",   default="plots/disc",
                         help="Output directory for plots")
     parser.add_argument("--data-dir", default=None,
-                        help="Override full EOS path to skim directory for this year")
+                        help="Full path to skim directory for this year")
     parser.add_argument("--pmap",     default="pmap_run3.json",
                         help="Path to the process-to-dataset map JSON")
     args = parser.parse_args()
@@ -350,22 +375,36 @@ def main() -> None:
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    data_dir = Path(args.data_dir) if args.data_dir else \
-               Path(f"/eos/uscms/store/group/lpchbbrun3/skims/{args.tag}/{args.year}")
+    if args.data_dir:
+        data_dir = Path(args.data_dir)
+    elif args.tag:
+        data_dir = Path(f"/eos/uscms/store/group/lpchbbrun3/skims/{args.tag}/{args.year}")
+    else:
+        raise ValueError("Provide either --data-dir or --tag")
+
     print(f"Loading from: {data_dir}")
 
     with Path(args.pmap).open() as f:
         pmap = json.load(f)
 
-    cols = COLS_BASE + COLS_PHOTON
+    cols_with_gf    = COLS_BASE + COLS_PHOTON
+    cols_without_gf = [c for c in COLS_BASE if c != "GenFlavor"] + COLS_PHOTON
 
-    # Load all four processes
+    # Collect unique processes from all groups (preserving insertion order)
+    all_procs: list[str] = []
+    for grp in GROUPS.values():
+        for p in grp["procs"]:
+            if p not in all_procs:
+                all_procs.append(p)
+
     events_dict: dict[str, pd.DataFrame] = {}
-    for proc in list(PROCESSES.keys()):
+    for proc in all_procs:
         if proc not in pmap:
             print(f"[WARN] {proc} not in pmap — skipping")
             continue
-        print(f"\n>>> Loading {proc} ...")
+        has_gf = proc in PROCS_WITH_GENFLAVOR
+        cols = cols_with_gf if has_gf else cols_without_gf
+        print(f"\n>>> Loading {proc} (GenFlavor={'yes' if has_gf else 'no'}) ...")
         loaded = utils.load_samples(
             data_dir=data_dir,
             samples={proc: pmap[proc]},
@@ -386,14 +425,16 @@ def main() -> None:
     print("\n>>> Building histograms ...")
     hists = fill_group_hists(events_dict)
 
-    # Print separation numbers
-    sep_cur = separation(hists["zcc"]["current"],  hists["wcs"]["current"])
-    sep_mod = separation(hists["zcc"]["modified"], hists["wcs"]["modified"])
-    print(f"\n  Separation  current    : {sep_cur:.4f}")
-    print(f"  Separation  modified   : {sep_mod:.4f}")
-    delta = sep_mod - sep_cur
-    print(f"  Delta (mod - cur)      : {delta:+.4f}  "
-          f"({'improvement' if delta > 0 else 'worse'})")
+    # Print separation numbers for both pairs
+    for num, den in [("zcc", "wcs"), ("zbb", "qcd")]:
+        sep_cur = separation(hists[num]["current"],  hists[den]["current"])
+        sep_mod = separation(hists[num]["modified"], hists[den]["modified"])
+        delta   = sep_mod - sep_cur
+        print(f"\n  {num.upper()} vs {den.upper()}:")
+        print(f"    Separation  current  : {sep_cur:.4f}")
+        print(f"    Separation  modified : {sep_mod:.4f}")
+        print(f"    Delta                : {delta:+.4f}  "
+              f"({'improvement' if delta > 0 else 'worse'})")
 
     print("\n>>> Making plots ...")
     make_comparison_plot(hists, args.year, outdir)
