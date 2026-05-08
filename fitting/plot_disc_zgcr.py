@@ -117,13 +117,23 @@ COLS_PHOTON = [
     "Photon110EB_TightID_TightIso",
 ]
 
-# PyArrow pre-filters (loose — tightened in Python after loading)
+# PyArrow pre-filters — match actual preselection cuts as closely as possible
+# to minimise memory footprint (especially for large high-pT bins like PTG-600)
 PQ_FILTERS = [
-    ("FatJet0_msd", ">=", 15.0),
-    ("FatJet0_msd", "<=", 210.0),
-    ("FatJet0_pt",  ">=", 240.0),
-    ("Photon0_pt",  ">=", 100.0),
+    ("FatJet0_msd", ">=", 40.0),
+    ("FatJet0_msd", "<=", 205.0),
+    ("FatJet0_pt",  ">=", 250.0),
+    ("Photon0_pt",  ">=", 120.0),
 ]
+
+# Extra GenFlavor filters applied at pyarrow level per group to further reduce memory.
+# Keys match GROUPS; None means no extra filter.
+PQ_FILTERS_EXTRA: dict[str, list | None] = {
+    "zcc": [("GenFlavor", "==", GENFLAVOR_CHARM)],
+    "zbb": [("GenFlavor", "==", GENFLAVOR_BB)],
+    "wcs": [("GenFlavor", "==", GENFLAVOR_CHARM)],
+    "qcd": None,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -182,19 +192,18 @@ def fill_group_hists(
     for grp_name, grp_cfg in GROUPS.items():
         gfilt = grp_cfg.get("gfilt")
         for proc in grp_cfg["procs"]:
-            if proc not in events_dict:
-                print(f"  [WARN] process {proc!r} not found — skipping")
+            key = f"{grp_name}:{proc}"
+            if key not in events_dict:
+                print(f"  [WARN] {key!r} not found — skipping")
                 continue
-            df = events_dict[proc]
+            df = events_dict[key]
 
             sel = apply_preselection(df)
 
-            # Apply GenFlavor cut only if requested and column exists
-            if gfilt is not None:
-                if "GenFlavor" in df.columns:
-                    sel = sel & (df["GenFlavor"] == gfilt)
-                else:
-                    print(f"  [WARN] {proc}: no GenFlavor column, skipping flavor cut")
+            # GenFlavor cut already applied at pyarrow level; apply again in Python
+            # as a safety net in case the parquet filter was not exact.
+            if gfilt is not None and "GenFlavor" in df.columns:
+                sel = sel & (df["GenFlavor"] == gfilt)
 
             df = df[sel]
 
@@ -390,33 +399,36 @@ def main() -> None:
     cols_with_gf    = COLS_BASE + COLS_PHOTON
     cols_without_gf = [c for c in COLS_BASE if c != "GenFlavor"] + COLS_PHOTON
 
-    # Collect unique processes from all groups (preserving insertion order)
-    all_procs: list[str] = []
-    for grp in GROUPS.values():
-        for p in grp["procs"]:
-            if p not in all_procs:
-                all_procs.append(p)
-
+    # Load each (group, process) pair separately so we can apply the per-group
+    # GenFlavor pre-filter at pyarrow level — this drastically reduces memory for
+    # large high-pT samples (e.g. WGto2QG-1Jets_Bin-PTG-600).
+    # events_dict keys are "{group}:{proc}" to allow the same process in multiple groups.
     events_dict: dict[str, pd.DataFrame] = {}
-    for proc in all_procs:
-        if proc not in pmap:
-            print(f"[WARN] {proc} not in pmap — skipping")
-            continue
-        has_gf = proc in PROCS_WITH_GENFLAVOR
+    for grp_name, grp_cfg in GROUPS.items():
+        extra = PQ_FILTERS_EXTRA.get(grp_name)
+        filters = PQ_FILTERS + extra if extra else PQ_FILTERS
+        has_gf = grp_cfg["gfilt"] is not None
         cols = cols_with_gf if has_gf else cols_without_gf
-        print(f"\n>>> Loading {proc} (GenFlavor={'yes' if has_gf else 'no'}) ...")
-        loaded = utils.load_samples(
-            data_dir=data_dir,
-            samples={proc: pmap[proc]},
-            columns=cols,
-            region=REGION,
-            variation=None,
-            filters=PQ_FILTERS,
-        )
-        if loaded:
-            events_dict[proc] = loaded[proc]
-        else:
-            print(f"  [WARN] No events loaded for {proc}")
+
+        for proc in grp_cfg["procs"]:
+            key = f"{grp_name}:{proc}"
+            if proc not in pmap:
+                print(f"[WARN] {proc} not in pmap — skipping")
+                continue
+            gf_label = f"GenFlavor=={grp_cfg['gfilt']}" if grp_cfg["gfilt"] is not None else "no GF"
+            print(f"\n>>> Loading {proc} for [{grp_name}] ({gf_label}) ...")
+            loaded = utils.load_samples(
+                data_dir=data_dir,
+                samples={proc: pmap[proc]},
+                columns=cols,
+                region=REGION,
+                variation=None,
+                filters=filters,
+            )
+            if loaded:
+                events_dict[key] = loaded[proc]
+            else:
+                print(f"  [WARN] No events loaded for {proc} [{grp_name}]")
 
     if not events_dict:
         print("ERROR: no events loaded. Check your --data-dir / --tag / --year.")
