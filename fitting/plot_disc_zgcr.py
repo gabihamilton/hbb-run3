@@ -10,7 +10,7 @@ Two discriminants are compared side by side:
   2. Modified: TXbbXcc_Wcs   = (Xbb + Xcc) / (Xbb + Xcc + QCD + Xcs)
 
 Z(cc)  = Zgamma + Zjets  with generator-level charm flavor (GenFlavor == 2)
-Z(bb)  = Zgamma + Zjets  with generator-level bb flavor    (GenFlavor == 1)
+Z(bb)  = Zgamma + Zjets  with generator-level bb flavor    (GenFlavor == 3)
 W(cs)  = Wgamma + Wjets  with generator-level charm flavor (GenFlavor == 2)
 QCD    = GJets            (no GenFlavor cut)
 
@@ -52,7 +52,7 @@ plt.style.use(hep.style.CMS)
 # ---------------------------------------------------------------------------
 
 REGION = "control-zgamma"
-GENFLAVOR_BB    = 1          # GenFlavor == 1 → bb decay
+GENFLAVOR_BB    = 3          # GenFlavor == 3 → bb decay
 GENFLAVOR_CHARM = 2          # GenFlavor == 2 → c / cs decay
 NBINS = 40
 DISC_RANGE = (0.0, 1.0)
