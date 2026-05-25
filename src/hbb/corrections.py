@@ -128,18 +128,17 @@ def add_pileup_weight(weights: Weights, year: str, nPU):
 
     weights.add("pileup", values["nominal"], values["up"], values["down"])
 
-def add_pdf_weight(gen_weights, pdf_weights):
+def add_pdf_weight(gen_weights, pdf_weights, output):
     """
     Apply pdf weight variation for standard Hessian set
     """
 
     out_pdf = {}
-    sum_pdf = {}
     for i in range(103):
         out_pdf[f"weight_pdf_{i}"] = pdf_weights[:, i]
-        sum_pdf[f"sumweight_pdf_{i}"] = ak.sum(pdf_weights[:, i] * gen_weights)
+        output["sumw_pdf"][f"sumweight_pdf_{i}"] = ak.sum(pdf_weights[:, i] * gen_weights)
 
-    return {**out_pdf, **sum_pdf}
+    return out_pdf
 
 def add_ps_weight(weights: Weights, ps_weights):
     """
@@ -165,7 +164,7 @@ def add_ps_weight(weights: Weights, ps_weights):
     weights.add("ISRPartonShower", nom, up_isr, down_isr)
     weights.add("FSRPartonShower", nom, up_fsr, down_fsr)
 
-def add_scalevar(gen_weights, var_weights, structure = "7pt"):
+def add_scalevar(gen_weights, var_weights, output, structure = "7pt"):
     """
     QCD scale variations according to recommendations by the LHCXSWG
     For application to:
@@ -179,16 +178,15 @@ def add_scalevar(gen_weights, var_weights, structure = "7pt"):
     }
 
     out_lhe = {}
-    sum_lhe = {}
     try:
         for var in var_map[structure]:
             out_lhe[f"weight_scalevar_{structure}_{var}"] = var_weights[:, var]
-            sum_lhe[f"sumweight_scalevar_{structure}_{var}"] = ak.sum(var_weights[:, var] * gen_weights)
+            output["sumw_pdf"][f"sumweight_scalevar_{structure}_{var}"] = ak.sum(var_weights[:, var] * gen_weights)
             
     except Exception as e:
         print("Scale variation structure unexpected:", e)
 
-    return {**out_lhe, **sum_lhe}
+    return out_lhe
 
 def get_EWHiggs_corrector(prodmode: str):
     #Create the corrector for the EW Higgs xs corrections based on selected production mode

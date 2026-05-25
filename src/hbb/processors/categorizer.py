@@ -199,6 +199,8 @@ class categorizer(SkimmerABC):
 
         self.make_output = lambda: {
             "sumw": {},
+            "sumw_pdf": {},
+            "sumw_scalevar": {},
             "cutflow": Hist.new.StrCat([], growth=True, name="region", label="Region")
             .StrCat([], growth=True, name="dataset", label="Dataset")
             .Reg(15, 0, 15, name="cut", label="Cut index")
@@ -286,7 +288,7 @@ class categorizer(SkimmerABC):
 
         return btag_SF
 
-    def get_weight_dict(self, events, region, weights, dataset) -> tuple[dict, dict]:
+    def get_weight_dict(self, events, region, weights, dataset, output) -> tuple[dict, dict]:
         """
         Calculate the partial weights and the systematic variations for specified region.
         Saved to dictionary to be output in skim files.
@@ -297,9 +299,9 @@ class categorizer(SkimmerABC):
             # Saving variations and sums in the output vector for signal datasets
             flag_syst = ("Hto2B" in dataset) or ("Hto2C" in dataset) or ("VBFZto" in dataset)
             if flag_syst:
-                pdf_dict = add_pdf_weight(events.genWeight, events.LHEPdfWeight)
-                scalevar_3_dict = add_scalevar(events.genWeight, events.LHEScaleWeight, structure = "3pt")
-                scalevar_7_dict = add_scalevar(events.genWeight, events.LHEScaleWeight, structure = "7pt")
+                pdf_dict = add_pdf_weight(events.genWeight, events.LHEPdfWeight, output)
+                scalevar_3_dict = add_scalevar(events.genWeight, events.LHEScaleWeight, output, structure = "3pt")
+                scalevar_7_dict = add_scalevar(events.genWeight, events.LHEScaleWeight, output, structure = "7pt")
 
         #Sort the region specific weights
         include_weights = []
@@ -670,10 +672,10 @@ class categorizer(SkimmerABC):
                 "control-zmumu", weights, events, muons=zmm_muons, muon_type="highpt"
             )
 
-            weights_dict, totals_temp = self.get_weight_dict(events, "signal", weights, dataset)
-            weights_dict_mu, totals_temp_mu = self.get_weight_dict(events, "control-tt", weights, dataset)
-            weights_dict_gamma, totals_temp_gamma = self.get_weight_dict(events, "control-zgamma", weights, dataset)
-            weights_dict_zmm, totals_temp_zmm = self.get_weight_dict(events, "control-zmumu", weights, dataset)
+            weights_dict, totals_temp = self.get_weight_dict(events, "signal", weights, dataset, output)
+            weights_dict_mu, totals_temp_mu = self.get_weight_dict(events, "control-tt", weights, dataset, output)
+            weights_dict_gamma, totals_temp_gamma = self.get_weight_dict(events, "control-zgamma", weights, dataset, output)
+            weights_dict_zmm, totals_temp_zmm = self.get_weight_dict(events, "control-zmumu", weights, dataset, output)
 
             for d, gen_func in gen_selection_dict.items():
                 if d in dataset:
