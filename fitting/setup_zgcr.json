@@ -12,7 +12,7 @@
     "observable": {
         "name": "msd",
         "branch_name": "FatJet0_msd",
-        "min": 20,
+        "min": 40,
         "max": 201,
         "nbins": 23
     },
