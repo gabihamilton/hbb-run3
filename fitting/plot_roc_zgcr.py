@@ -55,8 +55,8 @@ plt.style.use(hep.style.CMS)
 # ---------------------------------------------------------------------------
 
 REGION          = "control-zgamma"
-GENFLAVOR_BB    = 1
-GENFLAVOR_CHARM = 2
+GENFLAVOR_BB    = 3          # GenFlavor == 3 → bb decay (1=light, 2=charm, 3=bb)
+GENFLAVOR_CHARM = 2          # GenFlavor == 2 → c / cs decay
 WORKING_POINT   = 0.82     # current discriminant WP
 
 PQ_FILTERS = [

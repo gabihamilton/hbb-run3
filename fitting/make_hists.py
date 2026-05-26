@@ -352,7 +352,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Unified Histogram Maker for Signal and CR")
     parser.add_argument("--year", required=True, choices=["2022", "2022EE", "2023", "2023BPix", "2024"])
-    parser.add_argument("--tag", required=True, help="Tag for the skims directory (e.g., 26Feb03)")
+    parser.add_argument("--tag", default=None, help="Tag for the skims directory (e.g., 26Feb03). Required if --data-dir is not provided.")
     parser.add_argument("--setup", required=True, help="Path to setup.json file")
     parser.add_argument("--outdir", default="results", help="Directory to save ROOT files")
     parser.add_argument("--save-root", action="store_true", help="Actually write the ROOT file")
@@ -364,6 +364,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    if args.tag is None and args.data_dir is None:
+        parser.error("--tag is required when --data-dir is not provided.")
 
     # Ensure outdir exists before starting
     Path(args.outdir).mkdir(parents=True, exist_ok=True)
