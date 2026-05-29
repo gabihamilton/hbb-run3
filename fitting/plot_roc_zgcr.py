@@ -330,13 +330,7 @@ def print_equivalent_wps(events_dict: dict, year: str) -> None:
     print(f"  Current WP = {WORKING_POINT:.2f} on TXbbXcc")
     print(f"{'='*60}")
 
-    qcd_cur = np.concatenate([arrays["cur"] for grp, arrays in
-                              {g: collect_group_arrays(events_dict, g, GROUPS[g]["gfilt"])
-                               for g in ["qcd"]}.items()
-                              for arrays in [{"cur": arrays[0], "w": arrays[2]}]
-                              if len(arrays[2]) > 0])
-
-    # Recollect cleanly
+    # Collect all groups
     arrays = {}
     for grp_name, grp_cfg in GROUPS.items():
         cur, mod, w = collect_group_arrays(events_dict, grp_name, grp_cfg["gfilt"])
