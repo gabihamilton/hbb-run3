@@ -162,12 +162,17 @@ def find_threshold_at_fpr(scores: np.ndarray, weights: np.ndarray,
 # ---------------------------------------------------------------------------
 
 def load_all_groups(data_dir: Path, pmap: dict, year: str,
-                    qcd_data_dir: Path | None = None) -> dict[str, pd.DataFrame]:
+                    qcd_data_dir: Path | None = None,
+                    max_events: int | None = None) -> dict[str, pd.DataFrame]:
     """Returns events_dict keyed by 'group:proc'.
 
     qcd_data_dir: if provided, GJets (the 'qcd' group) is loaded from this
     path instead of data_dir.  Useful when the primary skims don't include
     QCD — point qcd_data_dir at an older skim directory that has GJets.
+
+    max_events: if set, randomly subsample each process to at most this many
+    rows after loading.  ROC curves are unchanged (weights are preserved) but
+    memory is capped — useful on memory-limited interactive nodes.
     """
     cols_with_gf    = COLS_BASE + COLS_PHOTON
     cols_without_gf = [c for c in COLS_BASE if c != "GenFlavor"] + COLS_PHOTON
@@ -198,7 +203,12 @@ def load_all_groups(data_dir: Path, pmap: dict, year: str,
                 filters=filters,
             )
             if loaded:
-                events_dict[key] = loaded[proc]
+                df = loaded[proc]
+                if max_events is not None and len(df) > max_events:
+                    print(f"    Subsampling {len(df):,} → {max_events:,} rows "
+                          f"(weights preserved, ROC unaffected)")
+                    df = df.sample(n=max_events, random_state=42)
+                events_dict[key] = df
     return events_dict
 
 
@@ -456,6 +466,10 @@ def main() -> None:
                         help="Optional fallback path for GJets (QCD) skims when "
                              "the primary skims don't include QCD "
                              "(e.g. /eos/.../Test_v15/2024)")
+    parser.add_argument("--max-events", type=int, default=500_000,
+                        help="Max events per process after loading (default: 500000). "
+                             "Random subsample — weights preserved, ROC unaffected. "
+                             "Set to 0 to disable.")
     parser.add_argument("--outdir",   default="plots/roc")
     parser.add_argument("--pmap",     default="pmap_run3.json")
     args = parser.parse_args()
@@ -466,12 +480,15 @@ def main() -> None:
     with open(args.pmap) as f:
         pmap = json.load(f)
 
-    qcd_dir = Path(args.qcd_data_dir) if args.qcd_data_dir else None
+    qcd_dir   = Path(args.qcd_data_dir) if args.qcd_data_dir else None
+    max_ev    = args.max_events if args.max_events > 0 else None
     print(f"Loading from: {args.data_dir}")
     if qcd_dir:
         print(f"QCD (GJets) from: {qcd_dir}")
+    if max_ev:
+        print(f"Max events per process: {max_ev:,}")
     events_dict = load_all_groups(Path(args.data_dir), pmap, args.year,
-                                  qcd_data_dir=qcd_dir)
+                                  qcd_data_dir=qcd_dir, max_events=max_ev)
 
     if not events_dict:
         print("ERROR: no events loaded.")
