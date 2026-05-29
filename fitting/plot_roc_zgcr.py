@@ -90,9 +90,12 @@ GROUPS = {
 }
 
 PQ_FILTERS_EXTRA = {
-    "zcc": [("GenFlavor", "==", GENFLAVOR_CHARM)],
-    "zbb": [("GenFlavor", "==", GENFLAVOR_BB)],
-    "wcs": [("GenFlavor", "==", GENFLAVOR_CHARM)],
+    # GenFlavor filtering is done in-memory in collect_group_arrays.
+    # PyArrow predicate pushdown on integer columns can silently return
+    # empty results due to type-matching quirks — don't use it here.
+    "zcc": None,
+    "zbb": None,
+    "wcs": None,
     "qcd": None,
 }
 
