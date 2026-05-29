@@ -161,8 +161,14 @@ def find_threshold_at_fpr(scores: np.ndarray, weights: np.ndarray,
 # Loading
 # ---------------------------------------------------------------------------
 
-def load_all_groups(data_dir: Path, pmap: dict, year: str) -> dict[str, pd.DataFrame]:
-    """Returns events_dict keyed by 'group:proc'."""
+def load_all_groups(data_dir: Path, pmap: dict, year: str,
+                    qcd_data_dir: Path | None = None) -> dict[str, pd.DataFrame]:
+    """Returns events_dict keyed by 'group:proc'.
+
+    qcd_data_dir: if provided, GJets (the 'qcd' group) is loaded from this
+    path instead of data_dir.  Useful when the primary skims don't include
+    QCD — point qcd_data_dir at an older skim directory that has GJets.
+    """
     cols_with_gf    = COLS_BASE + COLS_PHOTON
     cols_without_gf = [c for c in COLS_BASE if c != "GenFlavor"] + COLS_PHOTON
 
@@ -173,14 +179,18 @@ def load_all_groups(data_dir: Path, pmap: dict, year: str) -> dict[str, pd.DataF
         has_gf = grp_cfg["gfilt"] is not None
         cols = cols_with_gf if has_gf else cols_without_gf
 
+        # Use the fallback QCD path for the qcd group when specified
+        src_dir = (qcd_data_dir if (grp_name == "qcd" and qcd_data_dir is not None)
+                   else data_dir)
+
         for proc in grp_cfg["procs"]:
             key = f"{grp_name}:{proc}"
             if proc not in pmap:
                 print(f"[WARN] {proc} not in pmap")
                 continue
-            print(f"\n>>> Loading {proc} for [{grp_name}] ...")
+            print(f"\n>>> Loading {proc} for [{grp_name}] (from {src_dir}) ...")
             loaded = utils.load_samples(
-                data_dir=data_dir,
+                data_dir=src_dir,
                 samples={proc: pmap[proc]},
                 columns=cols,
                 region=REGION,
@@ -442,6 +452,10 @@ def main() -> None:
                         choices=["2022", "2022EE", "2023", "2023BPix", "2024"])
     parser.add_argument("--data-dir", required=True,
                         help="Full path to skim directory for this year")
+    parser.add_argument("--qcd-data-dir", default=None,
+                        help="Optional fallback path for GJets (QCD) skims when "
+                             "the primary skims don't include QCD "
+                             "(e.g. /eos/.../Test_v15/2024)")
     parser.add_argument("--outdir",   default="plots/roc")
     parser.add_argument("--pmap",     default="pmap_run3.json")
     args = parser.parse_args()
@@ -452,8 +466,12 @@ def main() -> None:
     with open(args.pmap) as f:
         pmap = json.load(f)
 
+    qcd_dir = Path(args.qcd_data_dir) if args.qcd_data_dir else None
     print(f"Loading from: {args.data_dir}")
-    events_dict = load_all_groups(Path(args.data_dir), pmap, args.year)
+    if qcd_dir:
+        print(f"QCD (GJets) from: {qcd_dir}")
+    events_dict = load_all_groups(Path(args.data_dir), pmap, args.year,
+                                  qcd_data_dir=qcd_dir)
 
     if not events_dict:
         print("ERROR: no events loaded.")
