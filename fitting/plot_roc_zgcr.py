@@ -227,10 +227,11 @@ def collect_group_arrays(events_dict: dict, grp_name: str,
 
 def make_roc_plot(events_dict: dict, year: str, outdir: Path) -> None:
     """
-    Three-panel ROC plot:
+    Four-panel ROC plot:
       1. Z(cc) vs QCD
-      2. Z(cc) vs QCD + W(cs)
-      3. Z(bb) vs QCD
+      2. Z(cc) vs W(cs)          ← key plot: directly tests what the modification targets
+      3. Z(cc) vs QCD + W(cs)
+      4. Z(bb) vs QCD
     Each panel shows both current and modified discriminants.
     The WP=0.82 operating point is marked.
     """
@@ -250,11 +251,12 @@ def make_roc_plot(events_dict: dict, year: str, outdir: Path) -> None:
 
     scenarios = [
         ("zcc", "qcd",  None,     r"$Z(cc)$ vs QCD"),
+        ("zcc", "wcs",  None,     r"$Z(cc)$ vs $W(cs)$"),
         ("zcc", "wcs",  "qcd",    r"$Z(cc)$ vs QCD + $W(cs)$"),
         ("zbb", "qcd",  None,     r"$Z(bb)$ vs QCD"),
     ]
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    fig, axes = plt.subplots(1, 4, figsize=(24, 6))
     fig.subplots_adjust(wspace=0.3)
 
     styles = {
@@ -317,6 +319,72 @@ def make_roc_plot(events_dict: dict, year: str, outdir: Path) -> None:
     fig.savefig(fname, bbox_inches="tight", dpi=150)
     plt.close(fig)
     print(f"\n  Saved: {fname}")
+
+
+def make_score_comparison_plot(events_dict: dict, year: str, outdir: Path) -> None:
+    """
+    Two-panel score distribution plot: Z(cc) and W(cs) overlaid,
+    for the current (left) and modified (right) discriminant.
+    Shows visually how the modification shifts W(cs) to lower scores.
+    """
+    colors = {"zcc": "steelblue", "wcs": "firebrick"}
+    labels = {"zcc": r"$Z(\to cc)$", "wcs": r"$W(\to cs)$"}
+
+    arrays = {}
+    for grp_name in ("zcc", "wcs", "qcd"):
+        cur, mod, w = collect_group_arrays(events_dict, grp_name, GROUPS[grp_name]["gfilt"])
+        arrays[grp_name] = {"cur": cur, "mod": mod, "w": w}
+
+    # Find equivalent WP on modified disc at same QCD background efficiency as WP=0.82
+    qcd_cur = arrays["qcd"]["cur"]
+    qcd_mod = arrays["qcd"]["mod"]
+    qcd_w   = arrays["qcd"]["w"]
+    if len(qcd_w) > 0:
+        wp_fpr   = float(np.sum(qcd_w[qcd_cur > WORKING_POINT]) / np.sum(qcd_w))
+        equiv_wp = find_threshold_at_fpr(qcd_mod, qcd_w, wp_fpr)
+    else:
+        equiv_wp = WORKING_POINT
+
+    bins = np.linspace(0, 1, 51)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig.subplots_adjust(wspace=0.35)
+
+    disc_configs = [
+        ("cur", r"Current  $TX_{bbcc}$",   WORKING_POINT, axes[0]),
+        ("mod", r"Modified $TX'_{bbcc}$",  equiv_wp,      axes[1]),
+    ]
+
+    for disc_key, disc_label, wp_th, ax in disc_configs:
+        for grp_name in ("zcc", "wcs"):
+            scores  = arrays[grp_name][disc_key]
+            weights = arrays[grp_name]["w"]
+            if len(weights) == 0:
+                continue
+            counts, edges = np.histogram(scores, bins=bins, weights=weights)
+            total = counts.sum()
+            if total > 0:
+                counts = counts / total
+            # Use fill_between for nicer style
+            centers = 0.5 * (edges[:-1] + edges[1:])
+            ax.step(edges[:-1], counts, where="post",
+                    color=colors[grp_name], lw=2, label=labels[grp_name])
+            ax.fill_between(edges[:-1], counts, step="post",
+                            color=colors[grp_name], alpha=0.15)
+
+        ax.axvline(wp_th, color="black", ls="--", lw=1.5,
+                   label=f"WP = {wp_th:.3f}")
+        ax.set_xlabel(disc_label, fontsize=12)
+        ax.set_ylabel("Normalized events / bin", fontsize=12)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(bottom=0)
+        ax.legend(fontsize=11)
+        hep.cms.label("Simulation Preliminary", data=False, ax=ax,
+                      year=year, fontsize=10)
+
+    fname = outdir / f"score_comparison_{year}.png"
+    fig.savefig(fname, bbox_inches="tight", dpi=150)
+    plt.close(fig)
+    print(f"  Saved: {fname}")
 
 
 def print_equivalent_wps(events_dict: dict, year: str) -> None:
@@ -390,6 +458,8 @@ def main() -> None:
 
     print("\n>>> Making ROC plots ...")
     make_roc_plot(events_dict, args.year, outdir)
+    print("\n>>> Making score distribution comparison ...")
+    make_score_comparison_plot(events_dict, args.year, outdir)
     print_equivalent_wps(events_dict, args.year)
     print("\nDone.")
 
