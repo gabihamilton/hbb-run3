@@ -126,12 +126,15 @@ PQ_FILTERS = [
     ("Photon0_pt",  ">=", 120.0),
 ]
 
-# Extra GenFlavor filters applied at pyarrow level per group to further reduce memory.
-# Keys match GROUPS; None means no extra filter.
+# Extra PyArrow filters per group.
+# NOTE: GenFlavor integer-column filters are intentionally NOT applied here —
+# PyArrow predicate pushdown on integer columns can silently return empty
+# results due to type-matching quirks (GenFlavor==3 is particularly affected).
+# GenFlavor selection is done in-memory in fill_group_hists instead.
 PQ_FILTERS_EXTRA: dict[str, list | None] = {
-    "zcc": [("GenFlavor", "==", GENFLAVOR_CHARM)],
-    "zbb": [("GenFlavor", "==", GENFLAVOR_BB)],
-    "wcs": [("GenFlavor", "==", GENFLAVOR_CHARM)],
+    "zcc": None,
+    "zbb": None,
+    "wcs": None,
     "qcd": None,
 }
 
@@ -183,11 +186,17 @@ def fill_group_hists(
 
     Returns
     -------
-    {group_name: {"current": values, "modified": values, "edges": edges}}
+    {group_name: {"current": values, "modified": values, "edges": edges,
+                  "sumw_current": float, "sumw_modified": float}}
+    where sumw_* is the total weighted yield (= expected events for the full
+    discriminant range after preselection).
     """
     edges = np.linspace(disc_range[0], disc_range[1], nbins + 1)
-    result = {g: {"current": np.zeros(nbins), "modified": np.zeros(nbins), "edges": edges}
-              for g in GROUPS}
+    result = {
+        g: {"current": np.zeros(nbins), "modified": np.zeros(nbins),
+            "edges": edges, "sumw_current": 0.0, "sumw_modified": 0.0}
+        for g in GROUPS
+    }
 
     for grp_name, grp_cfg in GROUPS.items():
         gfilt = grp_cfg.get("gfilt")
@@ -200,8 +209,8 @@ def fill_group_hists(
 
             sel = apply_preselection(df)
 
-            # GenFlavor cut already applied at pyarrow level; apply again in Python
-            # as a safety net in case the parquet filter was not exact.
+            # GenFlavor filtering done fully in Python — pyarrow pushdown on
+            # integer columns can silently return empty results.
             if gfilt is not None and "GenFlavor" in df.columns:
                 sel = sel & (df["GenFlavor"] == gfilt)
 
@@ -218,8 +227,10 @@ def fill_group_hists(
             h_cur, _ = np.histogram(disc_cur, bins=edges, weights=w)
             h_mod, _ = np.histogram(disc_mod, bins=edges, weights=w)
 
-            result[grp_name]["current"]  += h_cur
-            result[grp_name]["modified"] += h_mod
+            result[grp_name]["current"]        += h_cur
+            result[grp_name]["modified"]        += h_mod
+            result[grp_name]["sumw_current"]   += w.sum()
+            result[grp_name]["sumw_modified"]  += w.sum()
             print(f"  {proc} ({grp_name}): {len(df)} events, sumw = {w.sum():.3g}")
 
     return result
@@ -361,6 +372,81 @@ def make_ratio_plot(
     print(f"  Saved: {fname}")
 
 
+def make_yield_plot(
+    hists: dict,
+    year: str,
+    outdir: Path,
+    working_point: float = 0.82,
+) -> None:
+    """
+    Two-panel figure showing absolute expected event yields (sumW per bin),
+    not shape-normalised.  Shows the actual event-count scales so you can
+    see, e.g., how many Z(cc) events survive vs W(cs) background.
+
+    Left panel  — current discriminant
+    Right panel — modified discriminant
+
+    Each group's legend entry includes its total yield and the yield above
+    the WP=0.82 threshold (so you can read off pass-region counts directly).
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=False)
+    fig.subplots_adjust(wspace=0.35)
+
+    disc_keys   = ["current",  "modified"]
+    disc_titles = [
+        r"$T_{Xbb+Xcc}$  (current)",
+        r"$T_{Xbb+Xcc}^{\,Wcs}$  (modified)",
+    ]
+
+    for ax, dkey, dtitle in zip(axes, disc_keys, disc_titles):
+        edges   = hists["zcc"]["edges"]
+        centres = 0.5 * (edges[:-1] + edges[1:])
+        width   = edges[1] - edges[0]
+
+        for grp_name, grp_cfg in GROUPS.items():
+            h = hists[grp_name][dkey]
+            total_yield = h.sum()
+            # yield above working point
+            wp_mask     = centres >= working_point
+            pass_yield  = h[wp_mask].sum()
+            label = (
+                f"{grp_cfg['label'].split('[')[0].strip()}  "
+                f"[total={total_yield:.1f},  WP>{working_point}={pass_yield:.1f}]"
+            )
+            ax.bar(
+                centres, h,
+                width=width,
+                color=grp_cfg["color"],
+                alpha=0.40,
+                hatch=grp_cfg["hatch"],
+                label=label,
+                edgecolor="none",
+            )
+            ax.step(
+                edges, np.append(h, h[-1]),
+                where="post",
+                color=grp_cfg["color"],
+                linewidth=1.5,
+            )
+
+        # Working-point line
+        ax.axvline(working_point, color="black", ls="--", lw=1.5,
+                   label=f"WP = {working_point}")
+
+        ax.set_title(dtitle, fontsize=13, pad=8)
+        ax.set_xlabel("Discriminant value", fontsize=12)
+        ax.set_ylabel("Expected events / bin", fontsize=12)
+        ax.set_xlim(*DISC_RANGE)
+        ax.set_ylim(bottom=0)
+        ax.legend(fontsize=8, loc="upper center")
+        hep.cms.label("Preliminary", data=False, ax=ax, year=year, fontsize=12)
+
+    fname = outdir / f"disc_yields_{year}.png"
+    fig.savefig(fname, bbox_inches="tight", dpi=150)
+    plt.close(fig)
+    print(f"  Saved: {fname}")
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -372,11 +458,17 @@ def main() -> None:
     parser.add_argument("--year",     required=True,
                         choices=["2022", "2022EE", "2023", "2023BPix", "2024"])
     parser.add_argument("--tag",      default=None,
-                        help="Skim tag, e.g. 26Feb03 (used only if --data-dir not given)")
+                        help="Skim tag, e.g. 26May18 (used only if --data-dir not given)")
     parser.add_argument("--outdir",   default="plots/disc",
                         help="Output directory for plots")
     parser.add_argument("--data-dir", default=None,
                         help="Full path to skim directory for this year")
+    parser.add_argument("--qcd-data-dir", default=None,
+                        help="Fallback path for GJets (QCD) when primary skims don't "
+                             "include it (e.g. /eos/.../Test_v15/<year>)")
+    parser.add_argument("--max-events", type=int, default=500_000,
+                        help="Max events per process (random subsample, weights "
+                             "preserved). Set to 0 to disable. Default: 500000")
     parser.add_argument("--pmap",     default="pmap_run3.json",
                         help="Path to the process-to-dataset map JSON")
     args = parser.parse_args()
@@ -391,7 +483,13 @@ def main() -> None:
     else:
         raise ValueError("Provide either --data-dir or --tag")
 
+    qcd_dir  = Path(args.qcd_data_dir) if args.qcd_data_dir else None
+    max_ev   = args.max_events if args.max_events > 0 else None
     print(f"Loading from: {data_dir}")
+    if qcd_dir:
+        print(f"QCD (GJets) from: {qcd_dir}")
+    if max_ev:
+        print(f"Max events per process: {max_ev:,}")
 
     with Path(args.pmap).open() as f:
         pmap = json.load(f)
@@ -399,16 +497,15 @@ def main() -> None:
     cols_with_gf    = COLS_BASE + COLS_PHOTON
     cols_without_gf = [c for c in COLS_BASE if c != "GenFlavor"] + COLS_PHOTON
 
-    # Load each (group, process) pair separately so we can apply the per-group
-    # GenFlavor pre-filter at pyarrow level — this drastically reduces memory for
-    # large high-pT samples (e.g. WGto2QG-1Jets_Bin-PTG-600).
-    # events_dict keys are "{group}:{proc}" to allow the same process in multiple groups.
     events_dict: dict[str, pd.DataFrame] = {}
     for grp_name, grp_cfg in GROUPS.items():
         extra = PQ_FILTERS_EXTRA.get(grp_name)
         filters = PQ_FILTERS + extra if extra else PQ_FILTERS
         has_gf = grp_cfg["gfilt"] is not None
         cols = cols_with_gf if has_gf else cols_without_gf
+
+        src_dir = (qcd_dir if (grp_name == "qcd" and qcd_dir is not None)
+                   else data_dir)
 
         for proc in grp_cfg["procs"]:
             key = f"{grp_name}:{proc}"
@@ -418,7 +515,7 @@ def main() -> None:
             gf_label = f"GenFlavor=={grp_cfg['gfilt']}" if grp_cfg["gfilt"] is not None else "no GF"
             print(f"\n>>> Loading {proc} for [{grp_name}] ({gf_label}) ...")
             loaded = utils.load_samples(
-                data_dir=data_dir,
+                data_dir=src_dir,
                 samples={proc: pmap[proc]},
                 columns=cols,
                 region=REGION,
@@ -426,7 +523,11 @@ def main() -> None:
                 filters=filters,
             )
             if loaded:
-                events_dict[key] = loaded[proc]
+                df = loaded[proc]
+                if max_ev is not None and len(df) > max_ev:
+                    print(f"    Subsampling {len(df):,} → {max_ev:,} rows")
+                    df = df.sample(n=max_ev, random_state=42)
+                events_dict[key] = df
             else:
                 print(f"  [WARN] No events loaded for {proc} [{grp_name}]")
 
@@ -451,6 +552,7 @@ def main() -> None:
     print("\n>>> Making plots ...")
     make_comparison_plot(hists, args.year, outdir)
     make_ratio_plot(hists, args.year, outdir)
+    make_yield_plot(hists, args.year, outdir)
 
     print("\nDone.")
 
