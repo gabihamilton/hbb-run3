@@ -51,10 +51,8 @@ def get_held_jobs() -> list[dict]:
     # Use -af (autoformat) to get ClassAd values.
     # UserLog gives us the .log file path → we derive the .jdl from it.
     result = subprocess.run(
-        [
-            "condor_q", "-held",
-            "-af", "ClusterId", "ProcId", "HoldReason", "UserLog",
-        ],
+        "condor_q -held -af ClusterId ProcId HoldReason UserLog",
+        shell=True,
         capture_output=True, text=True,
     )
     if result.returncode != 0:
@@ -204,7 +202,7 @@ def main() -> None:
         print(f"    Memory: {old_mem} MB → {new_mem} MB")
 
         # 2. Remove old held job
-        rm = subprocess.run(["condor_rm", job_id], capture_output=True, text=True)
+        rm = subprocess.run(f"condor_rm {job_id}", shell=True, capture_output=True, text=True)
         if rm.returncode != 0:
             print(f"    [ERROR] condor_rm failed: {rm.stderr.strip()}")
             n_err += 1
@@ -212,8 +210,8 @@ def main() -> None:
         print(f"    Removed {job_id}")
 
         # 3. Resubmit
-        sub = subprocess.run(["condor_submit", str(jdl)],
-                              capture_output=True, text=True)
+        sub = subprocess.run(f"condor_submit {jdl}",
+                              shell=True, capture_output=True, text=True)
         if sub.returncode == 0:
             # Extract new cluster ID from output
             new_id = re.search(r"cluster (\d+)", sub.stdout)
