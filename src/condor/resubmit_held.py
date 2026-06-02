@@ -50,8 +50,10 @@ def get_held_jobs() -> list[dict]:
     """
     # Use -af (autoformat) to get ClassAd values.
     # UserLog gives us the .log file path → we derive the .jdl from it.
+    # GlobalJobId format: "schedd_host#ClusterId.ProcId#timestamp"
+    # Query it alongside UserLog so we can pass -name <schedd> to condor_rm.
     result = subprocess.run(
-        "condor_q -held -af ClusterId ProcId HoldReason UserLog",
+        "condor_q -held -af ClusterId ProcId HoldReason UserLog GlobalJobId",
         shell=True,
         capture_output=True, text=True,
     )
@@ -64,19 +66,21 @@ def get_held_jobs() -> list[dict]:
         line = line.strip()
         if not line:
             continue
-        # Split into at most 4 parts: ClusterId ProcId <HoldReason possibly with spaces> UserLog
-        # HoldReason may contain spaces so we can't just split — use a known-width approach.
-        # Safer: split first 2 tokens, last token, middle is HoldReason.
         parts = line.split()
-        if len(parts) < 4:
+        if len(parts) < 5:
             continue
-        cluster  = parts[0]
-        proc     = parts[1]
-        log_path = parts[-1]   # UserLog is last
-        reason   = " ".join(parts[2:-1])
+        cluster      = parts[0]
+        proc         = parts[1]
+        global_jid   = parts[-1]   # GlobalJobId is last
+        log_path     = parts[-2]   # UserLog is second-to-last
+        reason       = " ".join(parts[2:-2])
+
+        # Parse schedd from GlobalJobId: "schedd#ClusterId.ProcId#timestamp"
+        schedd = global_jid.split("#")[0] if "#" in global_jid else None
 
         jobs.append({
-            "job_id":     f"{cluster}.{proc}",
+            "job_id":      f"{cluster}.{proc}",
+            "schedd":      schedd,
             "hold_reason": reason,
             "log_path":    log_path,
         })
@@ -184,12 +188,13 @@ def main() -> None:
         print(f"    JDL: {jdl}")
 
         if args.dry_run:
-            # Just show current memory
             text = jdl.read_text()
             m = re.search(r"request_memory\s*=\s*(\d+)", text, re.IGNORECASE)
             cur = int(m.group(1)) if m else "?"
             new = int(cur * args.factor) if isinstance(cur, int) else "?"
-            print(f"    [DRY RUN] Would bump memory {cur} MB → {new} MB and resubmit")
+            schedd = job.get("schedd", "unknown")
+            print(f"    [DRY RUN] Would bump memory {cur} MB → {new} MB, "
+                  f"condor_rm -name {schedd}, and resubmit")
             continue
 
         # 1. Bump memory in JDL
@@ -202,12 +207,17 @@ def main() -> None:
         print(f"    Memory: {old_mem} MB → {new_mem} MB")
 
         # 2. Remove old held job
-        rm = subprocess.run(f"condor_rm {job_id}", shell=True, capture_output=True, text=True)
+        # Normalise job_id: condor_q -af can return "12345.0" — strip trailing .0
+        rm_id = job_id.rstrip("0").rstrip(".") if "." in job_id else job_id
+        schedd_flag = f"-name {job['schedd']}" if job.get("schedd") else ""
+        rm = subprocess.run(f"condor_rm {schedd_flag} {rm_id}",
+                            shell=True, capture_output=True, text=True)
         if rm.returncode != 0:
-            print(f"    [ERROR] condor_rm failed: {rm.stderr.strip()}")
+            out = (rm.stdout + rm.stderr).strip()
+            print(f"    [ERROR] condor_rm failed (exit {rm.returncode}): {out}")
             n_err += 1
             continue
-        print(f"    Removed {job_id}")
+        print(f"    Removed {rm_id} from {job.get('schedd', 'unknown schedd')}")
 
         # 3. Resubmit
         sub = subprocess.run(f"condor_submit {jdl}",
