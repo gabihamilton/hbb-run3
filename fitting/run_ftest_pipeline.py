@@ -199,10 +199,15 @@ def run_single_comparison(args, null_orders: tuple, alt_orders: tuple,
             args.year, args.tag, args.analysis,
             null_mc_pt, null_mc_rho, null_res_pt, null_res_rho,
             indir, args.outdir)
-        alt_model_dir = build_datacards(
-            args.year, args.tag, args.analysis,
-            alt_mc_pt, alt_mc_rho, alt_res_pt, alt_res_rho,
-            indir, args.outdir)
+        try:
+            alt_model_dir = build_datacards(
+                args.year, args.tag, args.analysis,
+                alt_mc_pt, alt_mc_rho, alt_res_pt, alt_res_rho,
+                indir, args.outdir)
+        except RuntimeError as e:
+            print(f"[WARN] Alt model ({alt_label}) failed to build: {e}")
+            print(f"[WARN] Model too complex — stopping scan, keeping null ({null_label})")
+            return None
     else:
         null_model_dir = (Path(args.outdir) / f"ftest_{null_label}" /
                           args.tag / args.year / "datacards" /
@@ -263,7 +268,7 @@ def auto_scan(args, indir: str, p_threshold: float = 0.05) -> None:
             indir=indir,
         )
         if pval is None:
-            print(f"[WARN] Could not parse p-value for rho {current_rho}→{next_rho}")
+            print(f"[WARN] Stopping residual rho scan at {current_rho}→{next_rho} (fit failed or p-value unavailable)")
             break
         record((mc_pt, mc_rho, res_pt, current_rho),
                (mc_pt, mc_rho, res_pt, next_rho), pval)
