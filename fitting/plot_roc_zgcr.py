@@ -193,22 +193,38 @@ def load_all_groups(data_dir: Path, pmap: dict, year: str,
             if proc not in pmap:
                 print(f"[WARN] {proc} not in pmap")
                 continue
-            print(f"\n>>> Loading {proc} for [{grp_name}] (from {src_dir}) ...")
-            loaded = utils.load_samples(
-                data_dir=src_dir,
-                samples={proc: pmap[proc]},
-                columns=cols,
-                region=REGION,
-                variation=None,
-                filters=filters,
-            )
-            if loaded:
-                df = loaded[proc]
-                if max_events is not None and len(df) > max_events:
-                    print(f"    Subsampling {len(df):,} → {max_events:,} rows "
-                          f"(weights preserved, ROC unaffected)")
-                    df = df.sample(n=max_events, random_state=42)
-                events_dict[key] = df
+
+            # Load each dataset individually and subsample per dataset.
+            # This prevents high-count/low-weight pT bins (e.g. PTG-600) from
+            # drowning out low-count/high-weight bins (e.g. PTG-100) when
+            # a flat per-process cap is applied to the combined dataframe.
+            datasets = pmap[proc]
+            if isinstance(datasets, str):
+                datasets = [datasets]
+
+            dfs = []
+            for dataset in datasets:
+                print(f"\n>>> Loading {dataset} [{proc}/{grp_name}] (from {src_dir}) ...")
+                loaded = utils.load_samples(
+                    data_dir=src_dir,
+                    samples={proc: [dataset]},
+                    columns=cols,
+                    region=REGION,
+                    variation=None,
+                    filters=filters,
+                )
+                if loaded and proc in loaded:
+                    df_ds = loaded[proc]
+                    if max_events is not None and len(df_ds) > max_events:
+                        print(f"    Subsampling {len(df_ds):,} → {max_events:,} rows")
+                        df_ds = df_ds.sample(n=max_events, random_state=42)
+                    dfs.append(df_ds)
+
+            if dfs:
+                import pandas as pd
+                events_dict[key] = pd.concat(dfs, ignore_index=True)
+                print(f"  → {key}: {len(events_dict[key]):,} total rows "
+                      f"from {len(dfs)} dataset(s)")
     return events_dict
 
 
@@ -368,7 +384,7 @@ def make_score_comparison_plot(events_dict: dict, year: str, outdir: Path) -> No
     else:
         equiv_wp = WORKING_POINT
 
-    bins = np.linspace(0, 1, 51)
+    bins = np.linspace(0, 1, 21)   # 20 bins — smoother with limited stats
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
     fig.subplots_adjust(wspace=0.35)
 
@@ -401,7 +417,7 @@ def make_score_comparison_plot(events_dict: dict, year: str, outdir: Path) -> No
         ax.set_xlim(0, 1)
         ax.set_ylim(bottom=0)
         ax.legend(fontsize=11)
-        hep.cms.label("Simulation Preliminary", data=False, ax=ax,
+        hep.cms.label("Preliminary", data=False, ax=ax,
                       year=year, fontsize=10)
 
     fname = outdir / f"score_comparison_{year}.png"
