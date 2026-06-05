@@ -223,6 +223,10 @@ class categorizer(SkimmerABC):
 
     def process(self, events):
 
+        # Skip empty chunks — CorrectedJetsFactory crashes on size-0 arrays
+        if len(events) == 0:
+            return {}
+
         # process only nominal case
         if self._skip_syst or not self._save_skim or not hasattr(events, "genWeight"):
             return {"nominal": self.process_shift(events, "nominal")}
@@ -346,6 +350,10 @@ class categorizer(SkimmerABC):
         return weights_dict_out, totals_dict
 
     def process_shift(self, events, shift_name):
+
+        if len(events) == 0:
+            return self.make_output()
+
 
         dataset = events.metadata["dataset"]
         isRealData = not hasattr(events, "genWeight")
