@@ -306,14 +306,14 @@ def auto_scan(args, indir: str, p_threshold: float = 0.05) -> None:
     recommended_res_pt = current_pt
 
     # -----------------------------------------------------------------------
-    # Scan 3: MC template rho order
+    # Scan 3: MC template rho order (always start from 0)
     # -----------------------------------------------------------------------
     print("\n" + "="*60)
     print("SCAN: MC template rho order")
     print("="*60)
-    current_mc_rho = args.base_mc_rho
+    current_mc_rho = 0
 
-    for next_mc_rho in range(args.base_mc_rho + 1, args.max_mc_rho + 1):
+    for next_mc_rho in range(1, args.max_mc_rho + 1):
         pval = run_single_comparison(
             args,
             null_orders=(mc_pt, current_mc_rho, recommended_res_pt, recommended_res_rho),
@@ -380,7 +380,7 @@ def main() -> None:
                            "recommended configuration")
     scan.add_argument("--base-mc-pt",  type=int, default=0)
     scan.add_argument("--base-mc-rho", type=int, default=1,
-                      help="Starting MC template rho order (default: 1)")
+                      help="Base MC template rho order used for residual scans (default: 1)")
     scan.add_argument("--max-res-rho", type=int, default=3,
                       help="Max residual rho order to test (default: 3)")
     scan.add_argument("--max-res-pt",  type=int, default=2,
