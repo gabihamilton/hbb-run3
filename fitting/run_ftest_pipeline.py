@@ -397,7 +397,7 @@ def main() -> None:
     single.add_argument("--alt-res-rho", type=int, default=1)
 
     args = parser.parse_args()
-    indir = args.indir or f"results/{args.tag}/{args.year}"
+    indir = args.indir or f"results/{args.tag}"
 
     if args.auto_scan:
         auto_scan(args, indir, p_threshold=args.p_threshold)
