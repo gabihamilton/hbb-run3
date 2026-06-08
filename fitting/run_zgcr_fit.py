@@ -113,8 +113,8 @@ def step_combine_cards(tag: str, outdir: Path, combined_dir: Path, dry_run: bool
         f"cd {combined_dir.resolve()} && text2workspace.py"
         f" -P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel"
         f" --PO verbose"
-        f" --PO 'map=.*/zgammabb:r_bb[1,-100,100]'"
-        f" --PO 'map=.*/zgammacc:r_cc[1,-100,100]'"
+        f" --PO 'map=.*/zgammabb:r_bb[1,0,10]'"
+        f" --PO 'map=.*/zgammacc:r_cc[1,0,10]'"
         f" model_combined.txt"
         f" -o workspace_combined.root"
     )
@@ -125,6 +125,13 @@ def step_fit(combined_dir: Path, dry_run: bool) -> None:
     print("\n" + "=" * 60)
     print("STEP 4: Run FitDiagnostics")
     print("=" * 60)
+    # Limit JMS/JMR nuisance parameters to ±3 to prevent morphing extrapolation
+    # into unphysical regions during minimization (templates are only reliable
+    # within ±1; beyond that the affine morphing can produce near-zero bins).
+    jmsr_ranges = ":".join(
+        f"CMS_jms_{y}=-3,3:CMS_jmr_{y}=-3,3"
+        for y in ["2022", "2022EE", "2023", "2023BPix", "2024"]
+    )
     run(
         f"cd {combined_dir.resolve()} && combine"
         f" -M FitDiagnostics"
@@ -134,6 +141,7 @@ def step_fit(combined_dir: Path, dry_run: bool) -> None:
         f" --saveNormalizations"
         f" -n _zgcr"
         f" --robustFit 1"
+        f" --setParameterRanges {jmsr_ranges}"
         f" -v 1",
         dry_run,
     )
