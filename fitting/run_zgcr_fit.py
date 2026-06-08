@@ -97,10 +97,11 @@ def step_combine_cards(tag: str, outdir: Path, combined_dir: Path, dry_run: bool
     combined_dir.mkdir(parents=True, exist_ok=True)
 
     # Build combineCards command — use absolute paths so cd doesn't break relative refs
+    # Prefix year with 'y' to avoid Combine rejecting bin names starting with a digit
     card_args = ""
     for year in YEARS:
         mdir = model_dir(outdir.resolve(), tag, year)
-        card_args += f" {year}={mdir}/model_combined.txt"
+        card_args += f" y{year}={mdir}/model_combined.txt"
 
     run(
         f"cd {combined_dir.resolve()} && combineCards.py {card_args} > model_combined.txt",
