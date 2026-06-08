@@ -96,20 +96,20 @@ def step_combine_cards(tag: str, outdir: Path, combined_dir: Path, dry_run: bool
     print("=" * 60)
     combined_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build combineCards command — use the per-year model_combined.txt from build.sh
+    # Build combineCards command — use absolute paths so cd doesn't break relative refs
     card_args = ""
     for year in YEARS:
-        mdir = model_dir(outdir, tag, year)
+        mdir = model_dir(outdir.resolve(), tag, year)
         card_args += f" {year}={mdir}/model_combined.txt"
 
     run(
-        f"cd {combined_dir} && combineCards.py {card_args} > model_combined.txt",
+        f"cd {combined_dir.resolve()} && combineCards.py {card_args} > model_combined.txt",
         dry_run,
     )
 
     # Build physics model config (multiSignalModel for r_bb and r_cc)
     t2w_cmd = (
-        f"cd {combined_dir} && text2workspace.py"
+        f"cd {combined_dir.resolve()} && text2workspace.py"
         f" -P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel"
         f" --PO verbose"
         f" --PO 'map=.*/zgammabb:r_bb[1,-100,100]'"
@@ -125,7 +125,7 @@ def step_fit(combined_dir: Path, dry_run: bool) -> None:
     print("STEP 4: Run FitDiagnostics")
     print("=" * 60)
     run(
-        f"cd {combined_dir} && combine"
+        f"cd {combined_dir.resolve()} && combine"
         f" -M FitDiagnostics"
         f" workspace_combined.root"
         f" --saveShapes"
