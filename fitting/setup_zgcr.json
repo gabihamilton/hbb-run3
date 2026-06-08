@@ -8,7 +8,7 @@
     "active_systematics": ["JMSunconstrained", "JMRunconstrained"],
     "jmsr_scale": 7,
     "jmsr_smear": 0.5,
-    "jmsr_processes": ["zgammabb"],
+    "jmsr_processes": ["zgammabb", "zgammacc"],
     "rho_scaling_max": -1.0,
     "samples_qq": ["Wjets", "Zjets", "Wgamma", "Zgamma", "TTGamma"],
 
