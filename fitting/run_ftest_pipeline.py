@@ -250,63 +250,10 @@ def auto_scan(args, indir: str, p_threshold: float = 0.05) -> None:
         status = "✓ prefer alt (p < 0.05)" if pval < p_threshold else "✗ keep null (p ≥ 0.05)"
         print(f"\n  p-value = {pval:.4f}  →  {status}")
 
-    # -----------------------------------------------------------------------
-    # Scan 1: residual rho order (pt fixed at base)
-    # -----------------------------------------------------------------------
-    print("\n" + "="*60)
-    print("SCAN: residual rho order (pt=0 fixed)")
-    print("="*60)
-    mc_pt, mc_rho = args.base_mc_pt, args.base_mc_rho
-    res_pt = 0
-    current_rho = 0
-
-    for next_rho in range(1, args.max_res_rho + 1):
-        pval = run_single_comparison(
-            args,
-            null_orders=(mc_pt, mc_rho, res_pt, current_rho),
-            alt_orders =(mc_pt, mc_rho, res_pt, next_rho),
-            indir=indir,
-        )
-        if pval is None:
-            print(f"[WARN] Stopping residual rho scan at {current_rho}→{next_rho} (fit failed or p-value unavailable)")
-            break
-        record((mc_pt, mc_rho, res_pt, current_rho),
-               (mc_pt, mc_rho, res_pt, next_rho), pval)
-        if pval >= p_threshold:
-            print(f"\n  → STOP: residual rho order {current_rho} is sufficient")
-            break
-        current_rho = next_rho
-
-    recommended_res_rho = current_rho
+    mc_pt = args.base_mc_pt
 
     # -----------------------------------------------------------------------
-    # Scan 2: residual pt order (rho fixed at recommended)
-    # -----------------------------------------------------------------------
-    print("\n" + "="*60)
-    print(f"SCAN: residual pt order (rho={recommended_res_rho} fixed)")
-    print("="*60)
-    current_pt = 0
-
-    for next_pt in range(1, args.max_res_pt + 1):
-        pval = run_single_comparison(
-            args,
-            null_orders=(mc_pt, mc_rho, current_pt, recommended_res_rho),
-            alt_orders =(mc_pt, mc_rho, next_pt,    recommended_res_rho),
-            indir=indir,
-        )
-        if pval is None:
-            break
-        record((mc_pt, mc_rho, current_pt, recommended_res_rho),
-               (mc_pt, mc_rho, next_pt,    recommended_res_rho), pval)
-        if pval >= p_threshold:
-            print(f"\n  → STOP: residual pt order {current_pt} is sufficient")
-            break
-        current_pt = next_pt
-
-    recommended_res_pt = current_pt
-
-    # -----------------------------------------------------------------------
-    # Scan 3: MC template rho order (always start from 0)
+    # Scan 1: MC template rho order (always start from 0)
     # -----------------------------------------------------------------------
     print("\n" + "="*60)
     print("SCAN: MC template rho order")
@@ -316,18 +263,77 @@ def auto_scan(args, indir: str, p_threshold: float = 0.05) -> None:
     for next_mc_rho in range(1, args.max_mc_rho + 1):
         pval = run_single_comparison(
             args,
-            null_orders=(mc_pt, current_mc_rho, recommended_res_pt, recommended_res_rho),
-            alt_orders =(mc_pt, next_mc_rho,    recommended_res_pt, recommended_res_rho),
+            null_orders=(mc_pt, current_mc_rho, 0, 0),
+            alt_orders =(mc_pt, next_mc_rho,    0, 0),
             indir=indir,
         )
         if pval is None:
+            print(f"[WARN] Stopping MC rho scan at {current_mc_rho}→{next_mc_rho} (fit failed or p-value unavailable)")
             break
-        record((mc_pt, current_mc_rho, recommended_res_pt, recommended_res_rho),
-               (mc_pt, next_mc_rho,    recommended_res_pt, recommended_res_rho), pval)
+        record((mc_pt, current_mc_rho, 0, 0),
+               (mc_pt, next_mc_rho,    0, 0), pval)
         if pval >= p_threshold:
             print(f"\n  → STOP: MC rho order {current_mc_rho} is sufficient")
             break
         current_mc_rho = next_mc_rho
+
+    recommended_mc_rho = current_mc_rho
+
+    # -----------------------------------------------------------------------
+    # Scan 2: residual rho order (using recommended MC order)
+    # -----------------------------------------------------------------------
+    print("\n" + "="*60)
+    print(f"SCAN: residual rho order (mc_rho={recommended_mc_rho} fixed)")
+    print("="*60)
+    res_pt = 0
+    current_rho = 0
+
+    for next_rho in range(1, args.max_res_rho + 1):
+        pval = run_single_comparison(
+            args,
+            null_orders=(mc_pt, recommended_mc_rho, res_pt, current_rho),
+            alt_orders =(mc_pt, recommended_mc_rho, res_pt, next_rho),
+            indir=indir,
+        )
+        if pval is None:
+            print(f"[WARN] Stopping residual rho scan at {current_rho}→{next_rho} (fit failed or p-value unavailable)")
+            break
+        record((mc_pt, recommended_mc_rho, res_pt, current_rho),
+               (mc_pt, recommended_mc_rho, res_pt, next_rho), pval)
+        if pval >= p_threshold:
+            print(f"\n  → STOP: residual rho order {current_rho} is sufficient")
+            break
+        current_rho = next_rho
+
+    recommended_res_rho = current_rho
+
+    # -----------------------------------------------------------------------
+    # Scan 3: residual pt order (using recommended MC and res rho order)
+    # -----------------------------------------------------------------------
+    print("\n" + "="*60)
+    print(f"SCAN: residual pt order (mc_rho={recommended_mc_rho}, res_rho={recommended_res_rho} fixed)")
+    print("="*60)
+    current_pt = 0
+
+    for next_pt in range(1, args.max_res_pt + 1):
+        pval = run_single_comparison(
+            args,
+            null_orders=(mc_pt, recommended_mc_rho, current_pt, recommended_res_rho),
+            alt_orders =(mc_pt, recommended_mc_rho, next_pt,    recommended_res_rho),
+            indir=indir,
+        )
+        if pval is None:
+            print(f"[WARN] Stopping residual pt scan at {current_pt}→{next_pt} (fit failed or p-value unavailable)")
+            break
+        record((mc_pt, recommended_mc_rho, current_pt, recommended_res_rho),
+               (mc_pt, recommended_mc_rho, next_pt,    recommended_res_rho), pval)
+        if pval >= p_threshold:
+            print(f"\n  → STOP: residual pt order {current_pt} is sufficient")
+            break
+        current_pt = next_pt
+
+    recommended_res_pt = current_pt
+    current_mc_rho = recommended_mc_rho
 
     # -----------------------------------------------------------------------
     # Summary
