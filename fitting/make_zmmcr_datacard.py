@@ -43,11 +43,11 @@ from hbb.common_vars import LUMI
 # of samples_qq (["Wjets", "Zjets"]) into bb / c / light.
 PROCESS_GROUPS = {
     "zmm": {
-        "components": [("Zjets", "bb"), ("Zjets", "c"), ("Zjets", "light")],
+        "components": [("Zjets", "")],
         "is_signal": True,
     },
     "wjets": {
-        "components": [("Wjets", "bb"), ("Wjets", "c"), ("Wjets", "light")],
+        "components": [("Wjets", "")],
         "is_signal": False,
     },
     "ttbar": {
@@ -101,7 +101,7 @@ def get_merged(rootfile, components, cat: str, region: str, ptbin: int, syst: st
     found_any = False
 
     for base, flavor in components:
-        proc = base + ("_" if flavor else "") + flavor if flavor else base
+        proc = base + flavor if flavor else base
         name = f"{cat}_{region}_pt{ptbin}_{proc}_{syst}"
         w, w2 = read_hist(rootfile, name)
         if w is None:
@@ -205,7 +205,7 @@ def build_datacard(args):
                     f"data_obs histogram not found: {data_name}\n"
                     f"Available keys (first 10): {available[:10]}"
                 )
-            ch.setObservation((data_w, mll_bins, mll.name, np.zeros_like(data_w)))
+            ch.setObservation((data_w, mll_bins, mll.name))
             print(f"    [OK]   data_obs   yield = {data_w.sum():.0f}")
 
     model.renderCombine(str(outdir))
