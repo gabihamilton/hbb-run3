@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
 import pandas as pd
+import uproot
 from hist.intervals import ratio_uncertainty
 
 from hbb import utils
@@ -340,6 +341,73 @@ def make_stack_plot(
 
 
 # ---------------------------------------------------------------------------
+# ROOT histogram export (for make_zmmcr_datacard.py)
+# ---------------------------------------------------------------------------
+# Fit observable: mll in [60, 120] GeV with 30 bins (2 GeV/bin)
+MLL_FIT_BINS = np.linspace(60, 120, 31)
+
+# Map plotter process names → datacard process names
+# All DY sub-groups are merged into a single "Zjets"
+DATACARD_PROC_MAP = {
+    "Muondata":          "data_obs",
+    "Zll_PTLL_100to200": "Zjets",
+    "Zll_PTLL_200to400": "Zjets",
+    "Zll_PTLL_400to600": "Zjets",
+    "Zll_PTLL_600":      "Zjets",
+    "Wjets":             "Wjets",
+    "ttbar":             "ttbar",
+    "VV":                "VV",
+    "singlet":           "singlet",
+}
+
+
+def save_root_histograms(
+    all_events: dict[str, pd.DataFrame],
+    selection_mask: dict[str, pd.Series],
+    year: str,
+    outpath: Path,
+) -> None:
+    """
+    Write mll histograms to a ROOT file in the format expected by
+    make_zmmcr_datacard.py:
+        zmmcr_inclusive_pt1_{proc}_nominal
+    """
+    # Accumulate sumw and sumw2 per datacard process
+    merged: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+
+    for plotter_proc, dc_proc in DATACARD_PROC_MAP.items():
+        if plotter_proc not in all_events:
+            continue
+        df   = all_events[plotter_proc]
+        mask = selection_mask.get(plotter_proc)
+        if mask is not None:
+            df = df[mask]
+        if df.empty:
+            continue
+
+        mll_vals = df["Zmm_MuonPair_mll"].values
+        is_data  = "data" in plotter_proc.lower()
+        weights  = np.ones(len(df)) if is_data else df["finalWeight"].astype(float).values
+
+        sumw, _  = np.histogram(mll_vals, bins=MLL_FIT_BINS, weights=weights)
+        sumw2, _ = np.histogram(mll_vals, bins=MLL_FIT_BINS, weights=weights ** 2)
+
+        if dc_proc in merged:
+            merged[dc_proc] = (merged[dc_proc][0] + sumw, merged[dc_proc][1] + sumw2)
+        else:
+            merged[dc_proc] = (sumw, sumw2)
+
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+    with uproot.recreate(outpath) as f:
+        for dc_proc, (sumw, sumw2) in merged.items():
+            key = f"zmmcr_inclusive_pt1_{dc_proc}_nominal"
+            f[key] = (sumw, MLL_FIT_BINS)
+            print(f"  [{dc_proc:12s}]  yield = {sumw.sum():.1f}  → {key}")
+
+    print(f"\n  ROOT file written: {outpath}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -419,6 +487,13 @@ def main(args: argparse.Namespace) -> None:
             no_photon_mask[proc] = pd.Series(True, index=df.index)
             gamma_mask[proc] = pd.Series(False, index=df.index)
 
+    # --- Save ROOT histograms for datacard (no-photon selection) ---
+    if args.save_root:
+        root_outdir = Path(args.outdir_root) if args.outdir_root else outdir / "root"
+        root_path   = root_outdir / f"fitting_{year}_zmmcr_mll.root"
+        print(f"\n--- Saving ROOT histograms ({year}) ---")
+        save_root_histograms(all_events, no_photon_mask, year, root_path)
+
     # --- No-photon category ---
     print(f"\n--- No-photon category ({year}) ---")
     for var, bins, xlabel in VARS_BOTH:
@@ -457,6 +532,14 @@ if __name__ == "__main__":
         help="Full path to the directory containing the parquets for this year, "
              "e.g. /eos/uscms/store/group/lpchbbrun3/lara/MyTag/2024 "
              "Overrides --tag and --personal-path.",
+    )
+    parser.add_argument(
+        "--save-root", action="store_true",
+        help="Also write mll ROOT histograms for make_zmmcr_datacard.py",
+    )
+    parser.add_argument(
+        "--outdir-root", default=None,
+        help="Directory for ROOT output (default: <outdir>/root/)",
     )
     args = parser.parse_args()
     main(args)
