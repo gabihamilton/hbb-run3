@@ -209,6 +209,14 @@ def build_datacard(args):
             print(f"    [OK]   data_obs   yield = {data_w.sum():.0f}")
 
     model.renderCombine(str(outdir))
+
+    # Append z_norm rateParam to tie zmm normalization to the Z+γ SR via a
+    # shared floating parameter constrained by this CR.
+    for card_path in outdir.glob("ptbin*zmmcr*.txt"):
+        with open(card_path, "a") as card:
+            card.write("\nz_norm  rateParam  *  zmm  1  [0,5]\n")
+        print(f"  Added z_norm rateParam to {card_path.name}")
+
     print(f"\n✓ Datacard written to {outdir}")
     print(f"  To build workspace:")
     print(f"    cd {outdir} && bash build.sh")
