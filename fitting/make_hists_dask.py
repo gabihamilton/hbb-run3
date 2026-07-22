@@ -260,7 +260,7 @@ def main(args):
              "../src/hbb/utils.py",
              "template_utils.py"
              ],
-        log_directory=f"/uscmst1b_scratch/lpc1/3DayLifetime/lzygala",
+        log_directory=f"/uscmst1b_scratch/lpc1/3DayLifetime/{os.environ['USER']}",
         memory="14GB",  # Necessary for some 2024 QCD datasets, can get away with smaller for other years
         # job_script_prologue=[]
     )
