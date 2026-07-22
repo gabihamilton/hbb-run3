@@ -1,0 +1,36 @@
+{
+    "Muondata": [
+        "Muon_Run2022C_single", "Muon_Run2022C", "Muon_Run2022D",
+        "Muon_Run2022E", "Muon_Run2022F", "Muon_Run2022G",
+        "Muon_Run2023Cv1", "Muon_Run2023Cv2", "Muon_Run2023Cv3", "Muon_Run2023Cv4",
+        "Muon_Run2023D",
+        "Muon_Run2024C", "Muon_Run2024D", "Muon_Run2024E", "Muon_Run2024F",
+        "Muon_Run2024G", "Muon_Run2024H", "Muon_Run2024I"
+    ],
+    "Zjets": [
+        "DYto2L-2Jets_MLL-50_PTLL-100to200_1J",
+        "DYto2L-2Jets_MLL-50_PTLL-100to200_2J",
+        "DYto2L-2Jets_MLL-50_PTLL-200to400_1J",
+        "DYto2L-2Jets_MLL-50_PTLL-200to400_2J",
+        "DYto2L-2Jets_MLL-50_PTLL-400to600_1J",
+        "DYto2L-2Jets_MLL-50_PTLL-400to600_2J",
+        "DYto2L-2Jets_MLL-50_PTLL-600_1J",
+        "DYto2L-2Jets_MLL-50_PTLL-600_2J"
+    ],
+    "Wjets": [
+        "WtoLNu-2Jets_0J",
+        "WtoLNu-2Jets_1J",
+        "WtoLNu-2Jets_2J",
+        "WtoLNu-4Jets_1J",
+        "WtoLNu-4Jets_2J",
+        "WtoLNu-4Jets_3J",
+        "WtoLNu-4Jets_4J"
+    ],
+    "ttbar": ["TTto4Q", "TTto2L2Nu", "TTtoLNu2Q"],
+    "VV": ["WW", "WZ", "ZZ", "WWto4Q", "WWto4Q_1Jets-4FS", "WZto4Q-1Jets-4FS"],
+    "singlet": [
+        "TbarBQ_t-channel_4FS", "TBbarQ_t-channel_4FS",
+        "TbarWplusto4Q", "TbarWplustoLNu2Q", "TbarWplusto2L2Nu",
+        "TWminusto4Q", "TWminustoLNu2Q", "TWminusto2L2Nu"
+    ]
+}

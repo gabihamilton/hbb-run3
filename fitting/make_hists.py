@@ -173,7 +173,8 @@ def export_to_root(histograms, output_root_path, region_key, samples_qq, syst, d
 def main(args):
     with Path(args.setup).open() as f:
         setup = json.load(f)
-    with Path("pmap_run3.json").open() as f:
+    pmap_file = args.pmap if args.pmap else "pmap_run3.json"
+    with Path(pmap_file).open() as f:
         pmap = json.load(f)
         
     do_BDT_regions = setup.get("do_BDT_regions", False)
@@ -372,6 +373,8 @@ if __name__ == "__main__":
     parser.add_argument("--setup", required=True, help="Path to setup.json file")
     parser.add_argument("--outdir", default="results", help="Directory to save ROOT files")
     parser.add_argument("--save-root", action="store_true", help="Actually write the ROOT file")
+    parser.add_argument("--pmap", default=None,
+                        help="Path to process map JSON (default: pmap_run3.json)")
     parser.add_argument(
         "--data-dir", default=None,
         help="Override the full path to the parquet directory for this year, "
