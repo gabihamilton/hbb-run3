@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+package_path = str(Path(__file__).parent.parent.resolve())
 
 def parse_common_args(parser):
     parser.add_argument(
@@ -120,7 +121,7 @@ def get_fileset(
     }
 
     """
-    with Path(f"data/nanoindex_{version}.json").open() as f:
+    with Path(f"{package_path}/../data/nanoindex_{version}.json").open() as f:
         full_fileset_nano = json.load(f)
 
     fileset = {}
@@ -129,12 +130,14 @@ def get_fileset(
         sample_set = full_fileset_nano[year][sample]
         set_subsamples = list(sample_set.keys())
 
+        test_subsamples = [x for x in set_subsamples if x in subsamples]
+
         # check if any subsamples for this sample have been specified
-        get_subsamples = set(set_subsamples).intersection(subsamples)
+        get_subsamples = set(set_subsamples).intersection(test_subsamples)
 
         # identify which subsamples are not in the full set
-        if check_subsamples and len(subsamples):
-            for subs in subsamples:
+        if check_subsamples and len(test_subsamples):
+            for subs in test_subsamples:
                 if subs not in get_subsamples:
                     raise ValueError(f"Subsample {subs} not found for sample {sample}!")
 

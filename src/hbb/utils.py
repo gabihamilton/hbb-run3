@@ -8,6 +8,7 @@ from __future__ import annotations
 import pickle
 import warnings
 from pathlib import Path
+import subprocess
 
 import awkward as ak
 import numpy as np
@@ -60,8 +61,14 @@ def check_selector(sample: str, selector: str | list[str]):
 
     return False
 
+def accumulate(outdict, name, _in):
+    if name not in outdict:
+        outdict[name] = _in
+    else:
+        outdict[name] += _in  
+    return outdict
 
-def get_sum_genweights(data_dir: Path, dataset: str) -> float:
+def get_sum_genweights(data_dir: Path, dataset: str, load_sys_sumweights: bool = False, scalevar_structure: str = "7pt", local_search_transfer = False) -> float:
     """
     Get the sum of genweights for a given dataset.
     :param data_dir: The directory where the datasets are stored.
@@ -69,10 +76,26 @@ def get_sum_genweights(data_dir: Path, dataset: str) -> float:
     :return: The sum of genweights for the dataset.
     """
     total_sumw = 0
+    syst_sumw = {}
+
+    scalevar_map = {
+        "3pt" : [0, 4, 8],             # case where muF^2 = muR^2
+        "7pt" : [0, 1, 3, 4, 5, 7, 8]  # case where muF = muR 
+    }
 
     try:
         # Load the genweights from the pickle file
-        for pickle_file in list(Path(data_dir / dataset / "pickles").glob("*.pkl")):
+        search_path = Path(data_dir / dataset / "pickles")
+        if local_search_transfer:
+            if Path("./local_pickle/").is_dir():
+                subprocess.run(["rm", "-r", "./local_pickle/"])
+            xrd_path = str(search_path).replace("/eos/uscms", "")
+            copied = xrdcp_to_local(xrd_path, "./local_pickle/")
+            search_path = Path("local_pickle/pickles")
+            if not copied:
+                return None
+
+        for pickle_file in list(search_path.glob("*.pkl")):
             with Path(pickle_file).open("rb") as file:
                 out_dict = pickle.load(file)
             # The sum of weights is stored in the "sumw" key
@@ -80,6 +103,21 @@ def get_sum_genweights(data_dir: Path, dataset: str) -> float:
             for key in out_dict:
                 sumw = next(iter(out_dict[key]["nominal"]["sumw"].values()))
             total_sumw += sumw
+
+            if load_sys_sumweights:
+                for i in range(103):
+                    for key in out_dict:
+
+                        n_sumw = f"sumweight_pdf_{i}"
+                        sumw = out_dict[key]["nominal"]["sumw_pdf"][n_sumw]
+                    accumulate(syst_sumw, n_sumw, sumw)
+
+                for i in scalevar_map[scalevar_structure]:
+                    for key in out_dict:
+                        n_sumw = f"sumweight_scalevar_{scalevar_structure}_{i}"
+                        sumw = out_dict[key]["nominal"]["sumw_scalevar"][n_sumw]
+                    accumulate(syst_sumw, n_sumw, sumw)
+
     except:
         warnings.warn(
             f"Error loading genweights for dataset: {dataset}. Skipping.",
@@ -87,9 +125,8 @@ def get_sum_genweights(data_dir: Path, dataset: str) -> float:
             stacklevel=2,
         )
         total_sumw = 1
-
     # print(f"Total sum of weights for all pickles for {dataset}: {total_sumw}")
-    return total_sumw
+    return total_sumw, syst_sumw
 
 
 def load_samples(
@@ -100,6 +137,9 @@ def load_samples(
     extra_columns: dict[str] = None,
     filters: list[tuple[str, str, str]] = None,
     variation: str = None,
+    load_sys_sumweights: bool = False,
+    scalevar_structure: str = "7pt",
+    local_search_transfer = False
 ) -> dict[str, pd.DataFrame]:
     """
     Load samples from a specified directory and return them as a dictionary.
@@ -128,8 +168,17 @@ def load_samples(
             search_path = Path(data_dir / dataset / "parquet" / "nominal" / region)
             if variation:
                 search_path = Path(data_dir / dataset /  "parquet" / variation / region)
-            print(f"\n[DEBUG] Script is searching in path: {search_path}\n")
 
+            if local_search_transfer:
+                if Path("./local_parquet/").is_dir():
+                    subprocess.run(["rm", "-r", "./local_parquet/"])
+                xrd_path = str(search_path).replace("/eos/uscms", "")
+                copied = xrdcp_to_local(xrd_path, "./local_parquet/")
+                if not copied:
+                    return None
+                search_path = Path(f"./local_parquet/{region}")
+
+            print(f"\n[DEBUG] Script is searching in path: {search_path}\n")
             # --- REPLACE THE OLD 'try' BLOCK WITH THIS ---
             try:
                 # Use os.listdir() which can be more robust on network filesystems
@@ -180,12 +229,16 @@ def load_samples(
 
             if "data" not in process:
                 # For MC datasets, we need to normalize the weights
-                sum_genweights = get_sum_genweights(data_dir, dataset)
+                sum_genweights, syst_sumweights = get_sum_genweights(data_dir, dataset, load_sys_sumweights, scalevar_structure, local_search_transfer)
                 print(f"Using sum_genweights for {dataset}: {sum_genweights}")
 
                 events["weight_nonorm"] = events["weight"]
                 events["finalWeight"] = events["weight"] / sum_genweights
                 events["sum_genWeight"] = sum_genweights
+
+                if load_sys_sumweights:
+                    for n_sumw in syst_sumweights:
+                        events[n_sumw] = syst_sumweights[n_sumw]
             else:
                 # For data, we just keep the weight as is
                 events["weight_nonorm"] = events["weight"]
@@ -206,3 +259,31 @@ def load_samples(
             )
 
     return events_dict
+
+def xrdcp_to_local(eos_path, local_dir, missing_ok = True):
+    Path(local_dir).mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "xrdcp",
+        "-fr", 
+        f"root://cmseos.fnal.gov/{eos_path}",
+        str(local_dir),
+    ]
+    result = subprocess.run(cmd, 
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,)
+    if result.returncode != 0:
+        msg = (
+            f"xrdcp failed with exit code {result.returncode}\n"
+            f"Command: {' '.join(cmd)}\n"
+            f"stdout: {result.stdout}\n"
+            f"stderr: {result.stderr}"
+        )
+
+        if missing_ok:
+            warnings.warn(msg)
+            return False
+
+        raise RuntimeError(msg)
+
+    return True

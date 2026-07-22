@@ -47,6 +47,8 @@ def get_datasets():
                 "JetMET_Run2024I": [
                     "/JetMET0/Run2024I-MINIv6NANOv15-v2/NANOAOD",
                     "/JetMET1/Run2024I-MINIv6NANOv15-v1/NANOAOD",
+                    "/JetMET0/Run2024I-MINIv6NANOv15_v2-v1/NANOAOD",
+                    "/JetMET1/Run2024I-MINIv6NANOv15_v2-v2/NANOAOD",
                 ],
             },
             "Muon": {
@@ -71,12 +73,15 @@ def get_datasets():
                     "/Muon1/Run2024G-MINIv6NANOv15-v2/NANOAOD",
                 ],
                 "Muon_Run2024H": [
-                    "/Muon0/Run2024G-MINIv6NANOv15-v1/NANOAOD",
-                    "/Muon1/Run2024G-MINIv6NANOv15-v2/NANOAOD",
+                    "/Muon0/Run2024H-MINIv6NANOv15-v1/NANOAOD",
+                    "/Muon1/Run2024H-MINIv6NANOv15-v2/NANOAOD",
                 ],
                 "Muon_Run2024I": [
                     "/Muon0/Run2024I-MINIv6NANOv15-v1/NANOAOD",
+                    "/Muon0/Run2024I-MINIv6NANOv15_v2-v1/NANOAOD",
                     "/Muon1/Run2024I-MINIv6NANOv15-v1/NANOAOD",
+                    "/Muon1/Run2024I-MINIv6NANOv15_v2-v1/NANOAOD",
+
                 ],
             },
             "EGamma": {
@@ -101,18 +106,20 @@ def get_datasets():
                     "/EGamma1/Run2024G-MINIv6NANOv15-v2/NANOAOD",
                 ],
                 "EGamma_Run2024H": [
-                    "/EGamma0/Run2024G-MINIv6NANOv15-v2/NANOAOD",
-                    "/EGamma1/Run2024G-MINIv6NANOv15-v1/NANOAOD",
+                    "/EGamma0/Run2024H-MINIv6NANOv15-v2/NANOAOD",
+                    "/EGamma1/Run2024H-MINIv6NANOv15-v1/NANOAOD",
                 ],
                 "EGamma_Run2024I": [
+                    "/EGamma0/Run2024I-MINIv6NANOv15-v1/NANOAOD",
+                    "/EGamma1/Run2024I-MINIv6NANOv15-v1/NANOAOD",
                     "/EGamma0/Run2024I-MINIv6NANOv15_v2-v1/NANOAOD",
                     "/EGamma1/Run2024I-MINIv6NANOv15_v2-v1/NANOAOD",
                 ],
             },
-            # "TTGamma": { #TODO - not produced
-            #     "TTG-1Jets_PTG-10to100": "",
-            #     "TTG-1Jets_PTG-100to200": "",
-            #     "TTG-1Jets_PTG-200": "",
+            # "TTGamma": { #TODO - not produced  # check RunIII2024Summer24NanoAODv15 status on pmp
+            #     "TTG-1Jets_PTG-10to100": "", https://cms-pdmv-prod.web.cern.ch/pmp/present?r=TTG-1Jets_Bin-PTG-10to100_TuneCP5_13p6TeV_amcatnloFXFXold-pythia8
+            #     "TTG-1Jets_PTG-100to200": "", https://cms-pdmv-prod.web.cern.ch/pmp/present?r=TTG-1Jets_Bin-PTG-100to200_TuneCP5_13p6TeV_amcatnloFXFXold-pythia8
+            #     "TTG-1Jets_PTG-200": "", https://cms-pdmv-prod.web.cern.ch/pmp/present?r=TTG-1Jets_Bin-PTG-200_TuneCP5_13p6TeV_amcatnloFXFXold-pythia8
             # },
             "GJets": {
                 "GJ_PTG-100to200": "/GJ_Bin-PTG-100to200_TuneCP5_13p6TeV_amcatnlo-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
@@ -172,7 +179,7 @@ def get_datasets():
                 },
             },
             "TT": {
-                "TTto2L2Nu": "/TTto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                "TTto2L2Nu": "/TTto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
                 "TTto4Q": "/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
                 "TTtoLNu2Q": "/TTtoLNu2Q_TuneCP5_13p6TeV_powheg-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
             },
@@ -210,20 +217,44 @@ def get_datasets():
                 "Zto2Q-2Jets_Bin-PTQQ-600": "/Zto2Q-2Jets_Bin-PTQQ-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
             },
             "VJets_lep_NLO": {
-                # WJetsToLNu #TODO - not produced
+                # WJetsToLNu 
+                "WtoLNu-2Jets_Bin-1J-PTLNu-40to100": "/WtoLNu-2Jets_Bin-1J-PTLNu-40to100_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-1J-PTLNu-100to200": "/WtoLNu-2Jets_Bin-1J-PTLNu-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-1J-PTLNu-200to400": "/WtoLNu-2Jets_Bin-1J-PTLNu-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-1J-PTLNu-400to600": "/WtoLNu-2Jets_Bin-1J-PTLNu-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-1J-PTLNu-600": "/WtoLNu-2Jets_Bin-1J-PTLNu-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-2J-PTLNu-40to100": "/WtoLNu-2Jets_Bin-2J-PTLNu-40to100_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-2J-PTLNu-100to200": "/WtoLNu-2Jets_Bin-2J-PTLNu-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-2J-PTLNu-200to400": "/WtoLNu-2Jets_Bin-2J-PTLNu-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-2J-PTLNu-400to600": "/WtoLNu-2Jets_Bin-2J-PTLNu-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                "WtoLNu-2Jets_Bin-2J-PTLNu-600": "/WtoLNu-2Jets_Bin-2J-PTLNu-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
                 # # "WtoLNu-2Jets": "",
-                # "WtoLNu-2Jets_0J": "",
-                # "WtoLNu-2Jets_1J": "",
-                # "WtoLNu-2Jets_2J": "",
+                # "WtoENu-2Jets_0J": "/WtoENu-2Jets_Bin-0J_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                # "WtoENu-2Jets_1J": "",
+                # "WtoENu-2Jets_2J": "/WtoENu-2Jets_Bin-2J_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                # "WtoMuNu-2Jets_0J": "/WtoMuNu-2Jets_Bin-0J_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                # "WtoMuNu-2Jets_1J": "/WtoMuNu-2Jets_Bin-1J_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                # "WtoMuNu-2Jets_2J": "/WtoMuNu-2Jets_Bin-2J_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                # "WtoTauNu-2Jets_0J": "/WtoTauNu-2Jets_Bin-0J_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                # "WtoTauNu-2Jets_1J": "/WtoTauNu-2Jets_Bin-1J_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                # "WtoTauNu-2Jets_2J": "/WtoTauNu-2Jets_Bin-2J_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
                 # # DYToLL
                 # "DYto2L-2Jets_MLL-10to50": "",
                 # # "DYto2L-2Jets_MLL-50": [
                 # #    "",
                 # #    "",
                 # # ],
-                # "DYto2L-2Jets_MLL-50_0J": "",
-                # "DYto2L-2Jets_MLL-50_1J": "",
-                # "DYto2L-2Jets_MLL-50_2J": "",
+                "DYto2E-2Jets_MLL-50_0J": "/DYto2E-2Jets_Bin-0J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                "DYto2E-2Jets_MLL-50_1J": "/DYto2E-2Jets_Bin-1J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
+                "DYto2E-2Jets_MLL-50_2J": "/DYto2E-2Jets_Bin-2J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+
+                "DYto2Mu-2Jets_MLL-50_0J": "/DYto2Mu-2Jets_Bin-0J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
+                "DYto2Mu-2Jets_MLL-50_1J": "/DYto2Mu-2Jets_Bin-1J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v1/NANOAODSIM",
+                "DYto2Mu-2Jets_MLL-50_2J": "/DYto2Mu-2Jets_Bin-2J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
+                
+                "DYto2Tau-2Jets_MLL-50_0J": "/DYto2Tau-2Jets_Bin-0J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v4/NANOAODSIM",
+                "DYto2Tau-2Jets_MLL-50_1J": "/DYto2Tau-2Jets_Bin-1J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+                "DYto2Tau-2Jets_MLL-50_2J": "/DYto2Tau-2Jets_Bin-2J-MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
                 **{
                     f"DYto2L-2Jets_MLL-50_PTLL-{qbin}_1J": f"/DYto2L-2Jets_Bin-1J-MLL-50-PTLL-{qbin}_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM"
                     for qbin in ["100to200", "200to400", "400to600", "600"]
@@ -255,16 +286,6 @@ def get_datasets():
                 "WtoLNu-4Jets_Bin-3J": "/WtoLNu-4Jets_Bin-3J_TuneCP5_13p6TeV_madgraphMLM-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
                 "WtoLNu-4Jets_Bin-4J": "/WtoLNu-4Jets_Bin-4J_TuneCP5_13p6TeV_madgraphMLM-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
                 # WtoLNu-2Jets
-                "WtoLNu-2Jets_Bin-1J-PTLNu-40to100": "/WtoLNu-2Jets_Bin-1J-PTLNu-40to100_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-1J-PTLNu-100to200": "/WtoLNu-2Jets_Bin-1J-PTLNu-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-1J-PTLNu-200to400": "/WtoLNu-2Jets_Bin-1J-PTLNu-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-1J-PTLNu-400to600": "/WtoLNu-2Jets_Bin-1J-PTLNu-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-1J-PTLNu-600": "/WtoLNu-2Jets_Bin-1J-PTLNu-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-2J-PTLNu-40to100": "/WtoLNu-2Jets_Bin-2J-PTLNu-40to100_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-2J-PTLNu-100to200": "/WtoLNu-2Jets_Bin-2J-PTLNu-100to200_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v3/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-2J-PTLNu-200to400": "/WtoLNu-2Jets_Bin-2J-PTLNu-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-2J-PTLNu-400to600": "/WtoLNu-2Jets_Bin-2J-PTLNu-400to600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
-                "WtoLNu-2Jets_Bin-2J-PTLNu-600": "/WtoLNu-2Jets_Bin-2J-PTLNu-600_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
                 # DYToLL # TODO - not produced
                 # "DYto2L-4Jets_MLL-10to50": "",
                 # "DYto2L-4Jets_MLL-50": "",
@@ -316,7 +337,7 @@ def get_datasets():
                 # "VBFWtoLNu": "",
             },
         },
-        "2025": {
+        "2025": { #TODO DOUBLE CHECK RUNS BEFORE ADDING 2025 TO ANALYSIS WORKFLOW
             "JetMET": {
                 "JetMET_Run2025C": [
                     "/JetMET0/Run2025C-PromptReco-v2/NANOAOD",

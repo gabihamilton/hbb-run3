@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DEST=jerc
+DEST=jerc3
 mkdir -p "$DEST"
 
 TEMP=tmp_jec
@@ -10,7 +10,7 @@ jec_folders=(
   Summer22EE_22Sep2023_V3_MC
   Summer23Prompt23_V3_MC
   Summer23BPixPrompt23_V3_MC
-  Summer24Prompt24_V1_MC
+  Summer24Prompt24_V2_MC
   Summer22_22Sep2023_RunCD_V3_DATA
   Summer22EE_22Sep2023_RunE_V3_DATA
   Summer22EE_22Sep2023_RunF_V3_DATA
@@ -18,13 +18,13 @@ jec_folders=(
   Summer23Prompt23_RunCv123_V3_DATA
   Summer23Prompt23_RunCv4_V3_DATA
   Summer23BPixPrompt23_RunD_V3_DATA
-  Summer24Prompt24_RunCnib1_V1_DATA
-  Summer24Prompt24_RunDnib1_V1_DATA
-  Summer24Prompt24_RunEnib1_V1_DATA
-  Summer24Prompt24_RunFnib1_V1_DATA
-  Summer24Prompt24_RunGnib1_V1_DATA
-  Summer24Prompt24_RunHnib1_V1_DATA
-  Summer24Prompt24_RunInib1_V1_DATA
+  Summer24Prompt24_RunCnib1_V2_DATA
+  Summer24Prompt24_RunDnib1_V2_DATA
+  Summer24Prompt24_RunEnib1_V2_DATA
+  Summer24Prompt24_RunFnib1_V2_DATA
+  Summer24Prompt24_RunGnib1_V2_DATA
+  Summer24Prompt24_RunHnib1_V2_DATA
+  Summer24Prompt24_RunInib1_V2_DATA
 )
 
 jer_folders=(
@@ -86,6 +86,23 @@ done
 
 #fix for coffea extractor 
 #which jetmet hasn't changed even though they changed the length of their jr filenames
+for folder in "$DEST"/*_22Sep2023_*DATA; do
+    folder_name=$(basename "$folder")
+    num_parts=$(echo "$folder_name" | awk -F"_" '{print NF}')
+    if [ "$num_parts" -eq 5 ]; then
+        new_folder_name="$(echo "$folder_name" | sed 's/_//')"
+        mv "$folder" "$DEST/$new_folder_name"\
+
+        find "$DEST/$new_folder_name" -type f | while read f; do
+            base=$(basename "$f")
+            dir=$(dirname "$f")
+
+            new_file_name="$(echo "$base" | sed 's/_//')"
+            mv "$f" "$dir/$new_file_name"
+        done
+    fi
+done
+
 for folder in "$DEST"/*_JR*; do
     folder_name=$(basename "$folder")
     num_parts=$(echo "$folder_name" | awk -F"_" '{print NF}')

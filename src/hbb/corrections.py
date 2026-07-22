@@ -16,6 +16,7 @@ import awkward as ak
 import dask_awkward as dak
 import numpy as np
 import correctionlib
+import correctionlib.schemav2
 import pickle
 from coffea.analysis_tools import Weights
 from coffea.nanoevents.methods import vector
@@ -26,6 +27,7 @@ from coffea.lookup_tools import extractor
 from hbb.MuonScaRe import pt_resol, pt_scale, pt_resol_var, pt_scale_var 
 from hbb.jerc_eras import jec_eras,jer_eras, jec_mc, jer_mc, jec_data, fatjet_jerc_keys, jet_jerc_keys
 from hbb.taggers import b_taggers
+from hbb.EWHiggs_corrections import theory_xs, xs_ewkcorr, ewh_ptbin
 
 ak.behavior.update(vector.behavior)
 package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -40,13 +42,14 @@ LastRun_2022F = 362180
 """
 CorrectionLib files are available from: /cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration - synced daily
 """
-pog_correction_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/"
+pog_correction_path = "/cvmfs/cms-griddata.cern.ch/cat/metadata/"
 pog_jsons = {
     "muon": ["MUO", "muon_Z.json.gz"],
+    "muon_pt" : ["MUO", "muon_scalesmearing.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "photon": ["EGM", "photon.json.gz"],
-    "photon2024": ["EGM", "photonID_v1.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
+    "pileup2024": ["LUM", "puWeights_CDEFGHI.json.gz"], # file excludes 2024B 
     "fatjet_jec": ["JME", "fatJet_jerc.json.gz"],
     "jet_jec": ["JME", "jet_jerc.json.gz"],
     "jetveto": ["JME", "jetvetomaps.json.gz"],
@@ -55,11 +58,11 @@ pog_jsons = {
 }
 
 years = {
-    "2022": "2022_Summer22",
-    "2022EE": "2022_Summer22EE",
-    "2023": "2023_Summer23",
-    "2023BPix": "2023_Summer23BPix",
-    "2024": "2024_Summer24",
+    "2022": "Run3-22CDSep23-Summer22-NanoAODv12",
+    "2022EE": "Run3-22EFGSep23-Summer22EE-NanoAODv12",
+    "2023": "Run3-23CSep23-Summer23-NanoAODv12",
+    "2023BPix": "Run3-23DSep23-Summer23BPix-NanoAODv12",
+    "2024": "Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15",
 }
 
 
@@ -78,7 +81,7 @@ def get_pog_json(obj: str, year: str) -> str:
 
     year = years[year]
 
-    return f"{pog_correction_path}/POG/{pog_json[0]}/{year}/{pog_json[1]}"
+    return f"{pog_correction_path}/{pog_json[0]}/{year}/latest/{pog_json[1]}"
 
 
 def build_lumimask(filename):
@@ -99,7 +102,7 @@ lumiMasks = {
 
 def add_pileup_weight(weights: Weights, year: str, nPU):
     # clip nPU from 0 to 150
-    nPU = ak_clip(nPU, 0, 150)
+    # nPU = ak_clip(nPU, 0, 99)
 
     # https://twiki.cern.ch/twiki/bin/view/CMS/LumiRecommendationsRun3
     values = {}
@@ -108,7 +111,7 @@ def add_pileup_weight(weights: Weights, year: str, nPU):
         cset = correctionlib.CorrectionSet.from_file(get_pog_json("pileup", year))
     else:
         pog_json_file = f"{package_path}/hbb/data/puWeights_2024.json"
-        cset = correctionlib.CorrectionSet.from_file(pog_json_file)
+        cset = correctionlib.CorrectionSet.from_file(get_pog_json("pileup2024", year))
 
     corr = {
         "2018": "Collisions18_UltraLegacy_goldenJSON",
@@ -116,7 +119,7 @@ def add_pileup_weight(weights: Weights, year: str, nPU):
         "2022EE": "Collisions2022_359022_362760_eraEFG_GoldenJson",
         "2023": "Collisions2023_366403_369802_eraBC_GoldenJson",
         "2023BPix": "Collisions2023_369803_370790_eraD_GoldenJson",
-        "2024": "Pileup",
+        "2024": "Collisions24_CDEFGHI_goldenJSON",
     }[year]
     # evaluate and clip up to 4 to avoid large weights
     values["nominal"] = ak_clip(cset[corr].evaluate(nPU, "nominal"), 0, 4)
@@ -125,30 +128,17 @@ def add_pileup_weight(weights: Weights, year: str, nPU):
 
     weights.add("pileup", values["nominal"], values["up"], values["down"])
 
-def add_pdf_weight(weights: Weights, pdf_weights):
+def add_pdf_weight(gen_weights, pdf_weights, output):
     """
     Apply pdf weight variation for standard Hessian set
     """
 
-    nom = ak.ones_like(weights.weight())
-    if pdf_weights is None:
-        weights.add('PDF_weight', nom)
-        weights.add('aS_weight', nom)
-        weights.add('PDFaS_weight', nom)
-        return
-                               
-    arg = pdf_weights[:,1:-2]-(ak.ones_like(weights.weight())[:, None] * ak.Array(np.ones(100)))
-    summed = ak.sum(np.square(arg),axis=1)
-    pdf_unc = np.sqrt( (1./99.) * summed )
-    weights.add('PDF_weight', nom, pdf_unc + nom)
+    out_pdf = {}
+    for i in range(103):
+        out_pdf[f"weight_pdf_{i}"] = pdf_weights[:, i]
+        output["sumw_pdf"][f"sumweight_pdf_{i}"] = ak.sum(pdf_weights[:, i] * gen_weights)
 
-    # alpha_S weights
-    as_unc = 0.5*(pdf_weights[:,102] - pdf_weights[:,101])
-    weights.add('aS_weight', nom, as_unc + nom)
-
-    # PDF + alpha_S weights
-    pdfas_unc = np.sqrt( np.square(pdf_unc) + np.square(as_unc) )
-    weights.add('PDFaS_weight', nom, pdfas_unc + nom) 
+    return out_pdf
 
 def add_ps_weight(weights: Weights, ps_weights):
     """
@@ -174,51 +164,90 @@ def add_ps_weight(weights: Weights, ps_weights):
     weights.add("ISRPartonShower", nom, up_isr, down_isr)
     weights.add("FSRPartonShower", nom, up_fsr, down_fsr)
 
-def add_scalevar_7pt(weights: Weights, var_weights):
+def add_scalevar(gen_weights, var_weights, output, structure = "7pt"):
     """
-    QCD scale variations for the case muF = muR
-    For application to high pt ggf and ttH higgs production mc
+    QCD scale variations according to recommendations by the LHCXSWG
+    For application to:
+         high pt ggf and ttH higgs production mc : muF = muR
+         high pt VBF and VH higgs production mc : muF^2 = muR^2
     Recommendation by LHCXSWG cds.cern.ch/record/2669113
     """
-    nom   = ak.ones_like(weights.weight())
-    up    = ak.ones_like(nom)
-    down  = ak.ones_like(nom)
+    var_map = {
+        "3pt" : [0, 4, 8],             # case where muF^2 = muR^2
+        "7pt" : [0, 1, 3, 4, 5, 7, 8]  # case where muF = muR 
+    }
 
-    if var_weights is None:
-        weights.add('scalevar_7pt', nom)
-        return
- 
+    out_lhe = {}
     try:
-        selected = var_weights[:, [0, 1, 3, 5, 7, 8]]
-        up = ak.max(selected, axis=1)
-        down = ak.min(selected, axis=1)
+        for var in var_map[structure]:
+            out_lhe[f"weight_scalevar_{structure}_{var}"] = var_weights[:, var]
+            output["sumw_scalevar"][f"sumweight_scalevar_{structure}_{var}"] = ak.sum(var_weights[:, var] * gen_weights)
+            
     except Exception as e:
         print("Scale variation structure unexpected:", e)
 
-    weights.add('scalevar_7pt', nom, up, down)
+    return out_lhe
 
-def add_scalevar_3pt(weights: Weights, var_weights):
-    """
-    QCD scale variations for the case muF^2 = muR^2
-    For application to high pt VBF and VH higgs production mc
-    Recommendation by LHCXSWG cds.cern.ch/record/2669113
-    """
-    nom   = ak.ones_like(weights.weight())
-    up    = ak.ones_like(nom)
-    down  = ak.ones_like(nom)
+def get_EWHiggs_corrector(prodmode: str):
+    #Create the corrector for the EW Higgs xs corrections based on selected production mode
 
-    if var_weights is None:
-        weights.add('scalevar_3pt', nom)
+    # make the bins exclusive
+    def make_excl(th):
+        excl = -1*np.diff(th)
+        return np.append(excl,[th[-1]])
+
+    noewcorr = make_excl(theory_xs[prodmode])
+    yesewcorr = make_excl(np.multiply(theory_xs[prodmode], 1 + xs_ewkcorr[prodmode]))
+
+    # xs scale factors
+    weights = np.divide(yesewcorr,noewcorr)
+
+    # correction input variable
+    hptvar = correctionlib.schemav2.Variable(
+        name="hpt",
+        type="real",
+        description="Generated Higgs boson pT"
+    )
+
+    corr = correctionlib.schemav2.Correction(
+        name=prodmode,
+        version=1,
+        description=f"Electroweak correction to {prodmode} Higgs production",
+        inputs=[hptvar],
+        output=correctionlib.schemav2.Variable(name="out", type="real", description="Multiplicative k-factor"),
+        data={
+            "nodetype": "binning",
+            "input": "hpt",
+            "edges": list(ewh_ptbin),
+            "content": list(weights),
+            "flow": "clamp",
+        },
+    )
+
+    return corr
+
+def add_EWHiggs_weight(weights: Weights, dataset: str, genpart):
+    # Apply EW Higgs xs corrections
+
+    boson = ak.firsts(genpart[
+        (genpart.pdgId == 25)
+        & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+    ])
+    boson_pt = ak.fill_none(boson.pt, 0.)
+
+    if "VBFH" in dataset:
+        prodmode = "VBF"
+    elif "WplusH" in dataset or "WminusH" in dataset or "ZH" in dataset:
+        prodmode = "VH"
+    elif "ttH" in dataset:
+        prodmode = "ttH"
+    else:
         return
+    
+    corr = get_EWHiggs_corrector(prodmode)
+    ewk_nominal = corr.to_evaluator().evaluate(boson_pt)
 
-    try:
-        selected = var_weights[:, [0, 8]]
-        up = ak.max(selected, axis=1)
-        down = ak.min(selected, axis=1)
-    except Exception as e:
-        print("Scale variation structure unexpected:", e)
-
-    weights.add('scalevar_3pt', nom, up, down)
+    weights.add(f"{prodmode}_EW", ewk_nominal)
 
 # Jet Veto Maps
 # the JERC group recommends ALL analyses use these maps, as the JECs are derived excluding these zones.
@@ -369,10 +398,8 @@ def add_btag_weights(weights: Weights, jets: JetArray, btagger: str, wp: str, ye
         sys_name = "robustParticleTransformer"
     elif "DeepFlav" in btagger:
         sys_name = "deepJet"
-
-    if year == "2024":
-        #SFs not derived by BTV for Summer24 yet
-        return ak.ones_like(ak.num(jets))
+    elif "UParT" in btagger:
+        sys_name = "UParTAK4"
 
     cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
     btag_cut = b_taggers[year]["AK4"][btagger][wp]
@@ -506,13 +533,10 @@ def add_photon_weights(weights: Weights, year: str, photons, alt_str: str):
         "2022EE" : "2022Re-recoE+PromptFG",
         "2023" : "2023PromptC",
         "2023BPix" : "2023PromptD",
-        "2024" : "2024_ID",
+        "2024" : "2024Prompt",
     }
 
-    if not year == "2024":
-        cset = correctionlib.CorrectionSet.from_file(get_pog_json("photon", year))
-    else:
-        cset = correctionlib.CorrectionSet.from_file(get_pog_json("photon2024", year))
+    cset = correctionlib.CorrectionSet.from_file(get_pog_json("photon", year))
 
     if "2023" in year:   
         #json format is different for 23 and 23BPix
@@ -541,8 +565,7 @@ def correct_muons(muons, events, year: str, isRealData: bool):
     https://gitlab.cern.ch/cms-muonPOG/muonscarekit
     src/hbb/MuonScaRe.py refactored to work with dask+awkward by Lara
     """
-    c_file =f"{package_path}/hbb/data/mupt/{years[year]}.json"
-    cset = correctionlib.CorrectionSet.from_file(c_file)
+    cset = correctionlib.CorrectionSet.from_file(get_pog_json("muon_pt", year))
 
     if isRealData:
         muons["ptcorr"] = pt_scale(1, muons.pt, muons.eta, muons.phi, muons.charge, cset, nested=True)
@@ -559,3 +582,53 @@ def correct_muons(muons, events, year: str, isRealData: bool):
         muons["ptcorr_resol_down"] = pt_resol_var(muons.ptscalecorr, muons.ptcorr, muons.eta, "dn", cset, nested=True)
 
     return muons
+
+def add_VJets_corrections(weights: Weights, dataset: str, genpart):
+
+    boson = ak.firsts(genpart[
+            ((genpart.pdgId == 23)|(abs(genpart.pdgId) == 24))
+            & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+        ])
+    vpt = ak.fill_none(boson.pt, 0.)
+
+    Zjets_pref = ["DYto2L-2Jets_MLL-50", "DYto2E-2Jets_MLL-50", "DYto2Mu-2Jets_MLL-50", "DYto2Tau-2Jets_MLL-50", "Zto2Q-4Jets_Bin-HT", "Zto2Q-4Jets_HT"]
+    Wjets_pref = ["WtoLNu-2Jets", "Wto2Q-3Jets_Bin-HT", "Wto2Q-3Jets_HT"]
+    isZ_dataset = any(ds in dataset for ds in Zjets_pref)
+    isW_dataset = any(ds in dataset for ds in Wjets_pref)
+    
+    common_systs = [
+        "d1K_NLO",
+        "d2K_NLO",
+        "d3K_NLO",
+        "d1kappa_EW",
+    ]
+    zsysts = common_systs + [
+        "Z_d2kappa_EW",
+        "Z_d3kappa_EW",
+    ]
+    wsysts = common_systs + [
+        "W_d2kappa_EW",
+        "W_d3kappa_EW",
+    ]
+
+    def add_systs(systlist, qcdcorr, ewkcorr):
+        ewknom = ewkcorr.evaluate("nominal", vpt)
+        weights.add("vjets_nominal", qcdcorr * ewknom if qcdcorr is not None else ewknom)
+        ones = ak.ones_like(vpt)
+        for syst in systlist:
+            weights.add(syst, ones, ewkcorr.evaluate(syst + "_up", vpt) / ewknom, ewkcorr.evaluate(syst + "_down", vpt) / ewknom)
+
+    file = f"{package_path}/hbb/data/vjets/vjets_corrections_2flavorDY.json"
+    vjets_kfactors = correctionlib.CorrectionSet.from_file(file)
+
+    if isZ_dataset:
+        qcdcorr = vjets_kfactors["Z_MLMtoFXFX"].evaluate(vpt)
+        ewkcorr = vjets_kfactors["Z_FixedOrderComponent"]
+        add_systs(zsysts, qcdcorr, ewkcorr)
+
+    elif isW_dataset:
+        qcdcorr = vjets_kfactors["W_MLMtoFXFX"].evaluate(vpt)
+        ewkcorr = vjets_kfactors["W_FixedOrderComponent"]
+        add_systs(wsysts, qcdcorr, ewkcorr)
+
+    return

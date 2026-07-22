@@ -91,6 +91,7 @@ xsecs["GluGluHto2B_PT-200_M-125"] = 0.5246 * (43.92 / 27.8) * BR_HBB
 xsecs["GluGluHto2C_PT-200_M-125"] = 0.5247 * (43.92 / 27.8) * BR_HCC
 # https://twiki.cern.ch/twiki/bin/view/LHCPhysics/LHCHWG136TeVxsec_extrap
 xsecs["VBFHto2B_M-125_dipoleRecoilOn"] = 4.078 * BR_HBB  # 2.34
+xsecs["VBFHto2B_M-125"] = 4.078 * BR_HBB  # 2.34
 xsecs["VBFHto2C_M-125"] = 4.078 * BR_HCC  # 2.34
 xsecs["WminusH_Hto2B_Wto2Q_M-125"] = 0.8889 * BR_WQQ * BR_HBB  # 0.349
 xsecs["WminusH_Hto2C_Wto2Q_M-125"] = 0.8889 * BR_WQQ * BR_HCC
@@ -196,6 +197,23 @@ xsecs["DYto2L-2Jets_MLL-50_PTLL-100to200_2J"] = 51.68
 xsecs["DYto2L-2Jets_MLL-50_PTLL-200to400_2J"] = 7.159
 xsecs["DYto2L-2Jets_MLL-50_PTLL-400to600_2J"] = 0.4157
 xsecs["DYto2L-2Jets_MLL-50_PTLL-600_2J"] = 0.07019
+
+xsecs["DYto2E-2Jets_MLL-50_0J"] = 1684.0
+xsecs["DYto2E-2Jets_MLL-50_1J"] = 318.5
+xsecs["DYto2E-2Jets_MLL-50_2J"] = 120.7	
+xsecs["DYto2Mu-2Jets_MLL-50_0J"] = 1684.0
+xsecs["DYto2Mu-2Jets_MLL-50_1J"] = 318.5
+xsecs["DYto2Mu-2Jets_MLL-50_2J"] = 120.7	
+xsecs["DYto2Tau-2Jets_MLL-50_0J"] = 1684.0
+xsecs["DYto2Tau-2Jets_MLL-50_1J"] = 318.5
+xsecs["DYto2Tau-2Jets_MLL-50_2J"] = 120.7 	
+
+# VGammaLep - 22/23
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-100to200"] = 0.3493
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-10to100"] = 126.6
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-200to400"] = 0.04331
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-400to600"] = 0.00313
+xsecs["DYGto2LG-1Jets_MLL-50_PTG-600"] = 0.0006528
 
 # VGammaLep - 2024 (DYG + WGtoLNuG new binning) - xsecs TODO: get from McM
 xsecs["DYGto2LG-1Jets_Bin-MLL-50-PTG-100"] = 0.3942  # TODO
