@@ -280,15 +280,23 @@ def main(args):
         # Use slightly looser cuts than the analysis selection so we don't
         # accidentally lose events at bin edges.
         # ------------------------------------------------------------------
-        pq_filters = [
-            ("FatJet0_msd", ">=", float(obs["min"])),
-            ("FatJet0_msd", "<=", float(obs["max"])),
-            ("FatJet0_pt",  ">=", float(pt_bins[0])),
-        ]
-        if "zgamma" in region_to_load:
-            # Photon0_pt > 120 is the analysis cut; pre-filter at 100 to
-            # keep a small margin while cutting ~90% of low-pT GJets rows.
-            pq_filters.append(("Photon0_pt", ">=", 100.0))
+        if "zmumu" in region_to_load:
+            # Z→μμ CR selects on dimuon kinematics, not fat jet variables
+            pq_filters = [
+                (obs["branch_name"], ">=", float(obs["min"])),
+                (obs["branch_name"], "<=", float(obs["max"])),
+                (bin_branch, ">=", float(pt_bins[0])),
+            ]
+        else:
+            pq_filters = [
+                ("FatJet0_msd", ">=", float(obs["min"])),
+                ("FatJet0_msd", "<=", float(obs["max"])),
+                ("FatJet0_pt",  ">=", float(pt_bins[0])),
+            ]
+            if "zgamma" in region_to_load:
+                # Photon0_pt > 120 is the analysis cut; pre-filter at 100 to
+                # keep a small margin while cutting ~90% of low-pT GJets rows.
+                pq_filters.append(("Photon0_pt", ">=", 100.0))
 
         for syst in systs_to_run:
             print(f"\n>>> Running Systematic Pass: {syst}")
