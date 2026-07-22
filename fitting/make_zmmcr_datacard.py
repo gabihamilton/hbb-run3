@@ -44,7 +44,7 @@ from hbb.common_vars import LUMI
 PROCESS_GROUPS = {
     "zmm": {
         "components": [("Zjets", "")],
-        "is_signal": True,
+        "is_signal": False,
     },
     "wjets": {
         "components": [("Wjets", "")],
@@ -198,7 +198,8 @@ def build_datacard(args):
                 print(f"    [OK]   {proc_name:8s}  yield = {sumw.sum():.1f}")
 
             # Data observation
-            data_name = f"{cat_name}_{region}_pt{binindex}_data_obs_nominal"
+            data_key = config.get("data_obs_name", "Muondata")
+            data_name = f"{cat_name}_{region}_pt{binindex}_{data_key}_nominal"
             data_w, _ = read_hist(f, data_name)
             if data_w is None:
                 raise RuntimeError(
