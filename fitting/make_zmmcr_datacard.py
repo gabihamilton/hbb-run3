@@ -44,7 +44,7 @@ from hbb.common_vars import LUMI
 PROCESS_GROUPS = {
     "zmm": {
         "components": [("Zjets", "")],
-        "is_signal": False,
+        "is_signal": True,
     },
     "wjets": {
         "components": [("Wjets", "")],
