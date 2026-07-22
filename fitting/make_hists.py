@@ -147,8 +147,7 @@ def export_to_root(histograms, output_root_path, region_key, samples_qq, syst, d
     # If the file doesn't exist, uproot.update will create it.
     with uproot.update(output_root_path) as fout:
         for process, h in histograms.items():
-            # Standard Combine naming for data
-            proc_name = "data_obs" if process == data_key else process
+            proc_name = process
 
             # Check if process should be split (e.g., Wjets, Zjets)
             # and ensure we aren't trying to split the actual data stream
