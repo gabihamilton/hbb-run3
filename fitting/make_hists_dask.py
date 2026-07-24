@@ -57,7 +57,7 @@ def submit_task(process, dataset, data_dir, load_cols, region, region_key, varia
         filters=pq_filters,
         load_sys_sumweights=do_loadsys_sumw,
         scalevar_structure=scalevar_structure,
-        local_search_transfer=True
+        local_search_transfer=False
     )
 
     if events:
