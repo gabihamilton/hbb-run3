@@ -20,27 +20,28 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-ZGCR_DIR="results/${TAG}/${YEAR}/datacards/zgcrModel_${YEAR}"
-ZMMCR_DIR="results/${TAG}/${YEAR}/datacards/zmmcrModel_${YEAR}"
-OUTDIR="results/${TAG}/${YEAR}/datacards/combined_${YEAR}"
+FITTING_DIR="$(cd "$(dirname "$0")" && pwd)"
+ZGCR_DIR="${FITTING_DIR}/results/${TAG}/${YEAR}/datacards/zgcrModel_${YEAR}"
+ZMMCR_DIR="${FITTING_DIR}/results/${TAG}/${YEAR}/datacards/zmmcrModel_${YEAR}"
+OUTDIR="${FITTING_DIR}/results/${TAG}/${YEAR}/datacards/combined_${YEAR}"
 
 mkdir -p "$OUTDIR"
 cd "$OUTDIR"
 
 echo "=== Copying and patching Z+gamma datacards ==="
 for card in ptbin0zgcrpassbb${YEAR}.txt ptbin0zgcrpasscc${YEAR}.txt ptbin0zgcrfail${YEAR}.txt; do
-    cp "../../../../${ZGCR_DIR}/$card" .
+    cp "${ZGCR_DIR}/$card" .
     # Add z_norm rateParam to link with Z->mumu CR
     echo "z_norm rateParam * zgammabb 1 [0,5]" >> $card
     echo "z_norm rateParam * zgammacc 1 [0,5]" >> $card
 done
 
 echo "=== Copying Z->mumu datacard ==="
-cp "../../../../${ZMMCR_DIR}/ptbin0zmmcrinclusive${YEAR}.txt" .
+cp "${ZMMCR_DIR}/ptbin0zmmcrinclusive${YEAR}.txt" .
 
 # Copy ROOT files needed by the datacards (shapes)
-cp "../../../../${ZGCR_DIR}/zgcrModel_${YEAR}.root" .
-cp "../../../../${ZMMCR_DIR}/zmmcrModel_${YEAR}.root" .
+cp "${ZGCR_DIR}/zgcrModel_${YEAR}.root" .
+cp "${ZMMCR_DIR}/zmmcrModel_${YEAR}.root" .
 
 echo "=== Combining datacards ==="
 combineCards.py \
