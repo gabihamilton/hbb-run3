@@ -25,17 +25,37 @@ def main(args):
     samples = Path(eosdir).iterdir()
 
     jdls = [jdl for jdl in Path(f"condor/{args.tag}/").iterdir() if jdl.suffix == ".jdl"]
+    x = [
+            "_".join(str(jdl).split("/")[-1].split("_")[1:-1])
+            for jdl in jdls
+            if str(jdl).split("/")[-1].split("_")[0] == args.year
+        ]
+    condor_samples = list(set(x))
+    # print(x[0])
+    # print(list(set(x)))
+    # print("-------------------")
 
+    # jdl_test = str(jdls[0])
+    # print(jdl_test )
+    # print(str(jdl_test ).split("_"))
+    # print(str(jdl_test ).split("/"))
+    # print(str(jdl_test ).split("_")[1].split("/"))
+    # print(str(jdl_test ).split("/")[-1].split("_")[0])
+    # print(int(str(jdl_test )[:-4].split("_")[-1]))
+    # print(str(jdl_test ).split("_")[1].split("/")[-1])
+    # print("_".join(str(jdl_test ).split("/")[-1].split("_")[1:-1]))
+
+    # return
     jdl_dict = {}
-    for sample in samples:
+    for sample in condor_samples if args.check_condor_samples else samples:
         # extract the sample name
         s = str(sample).split("/")[-1]
 
         x = [
             int(str(jdl)[:-4].split("_")[-1])
             for jdl in jdls
-            if str(jdl).split("_")[1].split("/")[-1] == args.year
-            and "_".join(str(jdl).split("_")[2:-1]) == s
+            if str(jdl).split("/")[-1].split("_")[0] == args.year
+            and "_".join(str(jdl).split("/")[-1].split("_")[1:-1]) == s
         ]
         # get number of jdl (submission files)
         if len(x) > 0:
@@ -56,7 +76,8 @@ def main(args):
         print(f"Checking {sample}")
 
         ### CHECK PARQUETS
-        if not Path(f"{eosdir}/{sample}/parquet").exists():
+        print(f"{eosdir}/{sample}/parquet/nominal/signal-all")
+        if not Path(f"{eosdir}/{sample}/parquet/nominal/signal-all").exists():
             print_red(f"No parquet directory for {sample}!")
 
             # if no parquet directory exists, append all possible files
@@ -77,8 +98,8 @@ def main(args):
             continue
 
         outs_parquet = [
-            int(str(out).split(".")[0].split("_")[-1])
-            for out in Path(f"{eosdir}/{sample}/parquet").glob("*.parquet")
+            int(str(out).split("/")[-1].split(".")[0].replace("part",""))
+            for out in Path(f"{eosdir}/{sample}/parquet/nominal/signal-all").glob("*.parquet")
         ]
         # print(f"Out parquets: {outs_parquet}")
 
@@ -103,9 +124,10 @@ def main(args):
                 print_red(f"Missing output pickle #{i} for sample {sample}")
                 jdl_file = f"condor/{args.tag}/{args.year}_{sample}_{i}.jdl"
                 err_file = f"condor/{args.tag}/logs/{args.year}_{sample}_{i}.err"
-                missing_files.append(jdl_file)
-                err_files.append(err_file)
-                print(missing_files)
+                if Path(jdl_file).is_file():
+                    missing_files.append(jdl_file)
+                    err_files.append(err_file)
+                # print(missing_files)
 
                 if args.submit_missing:
                     os.system(f"condor_submit {jdl_file}")
@@ -149,6 +171,12 @@ if __name__ == "__main__":
         "check-running",
         default=False,
         help="check against running jobs as well (running_jobs.txt will be updated automatically)",
+    )    
+    run_utils.add_bool_arg(
+        parser,
+        "check-condor-samples",
+        default=False,
+        help="check against the samples that you have generated submission files for",
     )
 
     args = parser.parse_args()

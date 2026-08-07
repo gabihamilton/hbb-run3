@@ -21,7 +21,14 @@
   },
   "2024": {
     "Muon": { "files_per_job": 10 },
-    "VJets_lep_NLO": { "files_per_job": 10 },
+    "VJets_lep_NLO": { "subsamples": [
+      "DYto2E-2Jets_MLL-50_0J",
+      "DYto2E-2Jets_MLL-50_1J",
+      "DYto2E-2Jets_MLL-50_2J",
+      "DYto2Mu-2Jets_MLL-50_0J",
+      "DYto2Mu-2Jets_MLL-50_1J",
+      "DYto2Mu-2Jets_MLL-50_2J",
+      ], "files_per_job": 10 },
     "VGammaLep": { "files_per_job": 15, },
   }
 }

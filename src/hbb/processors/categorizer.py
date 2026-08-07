@@ -20,8 +20,9 @@ from hbb.corrections import (
     add_photon_weights,
     add_pileup_weight,
     add_ps_weight,
-    add_scalevar_3pt,
-    add_scalevar_7pt,
+    add_scalevar,
+    add_EWHiggs_weight,
+    add_VJets_corrections,
     apply_jerc,
     correct_met,
     correct_muons,
@@ -84,14 +85,17 @@ def get_BDT_model(BDT_file: str):
         "FatJet1_phi",
         "FatJet1_eta",
         "FatJet1_msd",
-        "FatJet1_pnetMass",
-        "FatJet1_pnetTXbb",
-        "FatJet1_pnetTXcc",
-        "FatJet1_pnetTXqq",
-        "FatJet1_pnetTXgg",
         "VBFPair_mjj",
         "VBFPair_deta",
-        "Photon0_pt",
+        "FatJet1_ParTPQCD",
+        "FatJet1_ParTPXbb",
+        "FatJet1_ParTPXcc",
+        "FatJet1_ParTPXqq",
+        "FatJet1_ParTPXcs",
+        "FatJet1_ParTPXbbVsQCD",
+        "FatJet1_ParTPXccVsQCD",
+        "FatJet1_ParTPXbbXcc",
+        "FatJet1_ParTmassX2p",
         "Jet0_pt",
         "Jet0_eta",
         "Jet0_phi",
@@ -181,7 +185,7 @@ class categorizer(SkimmerABC):
         self._btag_cut = b_taggers[self._year]["AK4"][self._btagger][self._btag_wp]
         self._mupt_type = "ptcorr"
         if self._evaluate_BDT:
-            self.bdt_model = get_BDT_model("src/hbb/data/MultiClassBDT_23Oct25.ubj")
+            self.bdt_model = get_BDT_model("src/hbb/data/MultiBDT_3cat_26Jun12.json")
 
         with Path("src/hbb/muon_triggers.json").open() as f:
             self._muontriggers = json.load(f)
@@ -198,6 +202,8 @@ class categorizer(SkimmerABC):
 
         self.make_output = lambda: {
             "sumw": {},
+            "sumw_pdf": {},
+            "sumw_scalevar": {},
             "cutflow": Hist.new.StrCat([], growth=True, name="region", label="Region")
             .StrCat([], growth=True, name="dataset", label="Dataset")
             .Reg(15, 0, 15, name="cut", label="Cut index")
@@ -249,20 +255,14 @@ class categorizer(SkimmerABC):
         weights.add("genweight", events.genWeight)
 
         if not self._skip_syst:
-            add_pileup_weight(weights, self._year, events.Pileup.nPU)
+            add_pileup_weight(weights, self._year, events.Pileup.nTrueInt)
             add_ps_weight(weights, events.PSWeight)
 
-            # Easier to save nominal weights for rest of MC with all of the syst names for grabbing columns in post-processing
-            # Need to fix
-            # flag_syst = ("Hto2B" in dataset) or ("Hto2C" in dataset) or ("VBFZto" in dataset)
-            # add_pdf_weight(weights, getattr(events, "LHEPdfWeight", None) if flag_syst else None)
-            # add_scalevar_7pt(
-            #     weights, getattr(events, "LHEScaleWeight", None) if flag_syst else None
-            # )
-            # add_scalevar_3pt(
-            #     weights, getattr(events, "LHEScaleWeight", None) if flag_syst else None
-            # )
+            add_EWHiggs_weight(weights, dataset, events.GenPart)
+            # TODO: Run 2 corrections currently implemented through preapproval, needs to be fixed by approval
 
+            add_VJets_corrections(weights, dataset, events.GenPart)
+            
         return
 
     def add_region_weights(
@@ -291,11 +291,20 @@ class categorizer(SkimmerABC):
 
         return btag_SF
 
-    def get_weight_dict(self, region, weights, dataset) -> tuple[dict, dict]:
+    def get_weight_dict(self, events, region, weights, dataset, output) -> tuple[dict, dict]:
         """
         Calculate the partial weights and the systematic variations for specified region.
         Saved to dictionary to be output in skim files.
         """
+
+        pdf_dict, scalevar_3_dict, scalevar_7_dict = {}, {}, {}
+        if not self._skip_syst:
+            # Saving variations and sums in the output vector for signal datasets
+            flag_syst = ("Hto2B" in dataset) or ("Hto2C" in dataset) or ("VBFZto" in dataset)
+            if flag_syst:
+                pdf_dict = add_pdf_weight(events.genWeight, events.LHEPdfWeight, output)
+                scalevar_3_dict = add_scalevar(events.genWeight, events.LHEScaleWeight, output, structure = "3pt")
+                scalevar_7_dict = add_scalevar(events.genWeight, events.LHEScaleWeight, output, structure = "7pt")
 
         #Sort the region specific weights
         include_weights = []
@@ -332,10 +341,21 @@ class categorizer(SkimmerABC):
         for key, val in weights_dict.items():
             weights_dict[key] = val * weight_norm
 
+
+        for weight in include_weights:
+            weights_dict[f"weight_nonorm_{weight.replace(f'REGION{region}_', '')}"] = weights.partial_weight(include=[weight])
+
+        for weight in include_weights:
+            include_copy = include_weights.copy()
+            include_copy.remove(weight)
+            weights_dict[f"weight_nonorm_WITHOUT_{weight.replace(f'REGION{region}_', '')}"] = weights.partial_weight(include=include_copy)
+
         # save the unnormalized weight, to confirm that it's been normalized in post-processing
         weights_dict["weight_noxsec"] = weights.partial_weight(include=include_weights)
 
-        return weights_dict, totals_dict
+        weights_dict_out = {**weights_dict, **pdf_dict, **scalevar_3_dict, **scalevar_7_dict}
+
+        return weights_dict_out, totals_dict
 
     def process_shift(self, events, shift_name):
 
@@ -470,6 +490,7 @@ class categorizer(SkimmerABC):
         dR = jets.delta_r(candidatejet)
         ak4_opphem_ak8 = jets[dphi > np.pi / 2]
         ak4_outside_ak8 = jets[dR > 0.8]
+        ak4_outside_ak8_medB = jets[(dR > 0.8) & (getattr(jets, self._btagger) > self._btag_cut)]
 
         # ak4 closest to ak8
         ak4_closest_ak8 = ak.firsts(
@@ -583,14 +604,17 @@ class categorizer(SkimmerABC):
                 "FatJet1_phi": subleadingjet.phi,
                 "FatJet1_eta": subleadingjet.eta,
                 "FatJet1_msd": subleadingjet.msd,
-                "FatJet1_pnetMass": subleadingjet.pnetmass,
-                "FatJet1_pnetTXbb": subleadingjet.particleNet_XbbVsQCD,
-                "FatJet1_pnetTXcc": subleadingjet.particleNet_XccVsQCD,
-                "FatJet1_pnetTXqq": subleadingjet.particleNet_XqqVsQCD,
-                "FatJet1_pnetTXgg": subleadingjet.particleNet_XggVsQCD,
                 "VBFPair_mjj": vbf_mjj,
                 "VBFPair_deta": vbf_deta,
-                "Photon0_pt": vgammaphoton.pt,
+                "FatJet1_ParTPQCD": subleadingjet.ParTPQCD,
+                "FatJet1_ParTPXbb": subleadingjet.ParTPXbb,
+                "FatJet1_ParTPXcc": subleadingjet.ParTPXcc,
+                "FatJet1_ParTPXqq": subleadingjet.ParTPXqq,
+                "FatJet1_ParTPXcs": subleadingjet.ParTPXcs,
+                "FatJet1_ParTPXbbVsQCD": subleadingjet.ParTPXbbVsQCD,
+                "FatJet1_ParTPXccVsQCD": subleadingjet.ParTPXccVsQCD,
+                "FatJet1_ParTPXbbXcc": subleadingjet.ParTPXbbXcc,
+                "FatJet1_ParTmassX2p": subleadingjet.ParTmassX2p,
                 "Jet0_pt": jet1_away.pt,
                 "Jet0_eta": jet1_away.eta,
                 "Jet0_phi": jet1_away.phi,
@@ -649,7 +673,7 @@ class categorizer(SkimmerABC):
             self.add_common_weights(weights, events, dataset)
             # signal regions
             btag_SF = self.add_region_weights(
-                "signal", weights, events, btag_jets=ak4_opphem_ak8
+                "signal", weights, events, btag_jets=ak4_outside_ak8
             )
             # muon region
             btag_SF_mu = self.add_region_weights(
@@ -664,10 +688,10 @@ class categorizer(SkimmerABC):
                 "control-zmumu", weights, events, muons=zmm_muons, muon_type="highpt"
             )
 
-            weights_dict, totals_temp = self.get_weight_dict("signal", weights, dataset)
-            weights_dict_mu, totals_temp_mu = self.get_weight_dict("control-tt", weights, dataset)
-            weights_dict_gamma, totals_temp_gamma = self.get_weight_dict("control-zgamma", weights, dataset)
-            weights_dict_zmm, totals_temp_zmm = self.get_weight_dict("control-zmumu", weights, dataset)
+            weights_dict, totals_temp = self.get_weight_dict(events, "signal", weights, dataset, output)
+            weights_dict_mu, totals_temp_mu = self.get_weight_dict(events, "control-tt", weights, dataset, output)
+            weights_dict_gamma, totals_temp_gamma = self.get_weight_dict(events, "control-zgamma", weights, dataset, output)
+            weights_dict_zmm, totals_temp_zmm = self.get_weight_dict(events, "control-zmumu", weights, dataset, output)
 
             for d, gen_func in gen_selection_dict.items():
                 if d in dataset:
@@ -693,7 +717,8 @@ class categorizer(SkimmerABC):
                 "metfilter",
                 "ak4jetveto",
                 "minjetkin",
-                "antiak4btagMediumOppHem",
+                # "antiak4btagMediumOppHem",
+                "antiak4btagMedium",
                 "lowmet",
                 "noleptons",
             ],
@@ -703,7 +728,8 @@ class categorizer(SkimmerABC):
                 "metfilter",
                 "ak4jetveto",
                 "minjetkin",
-                "antiak4btagMediumOppHem",
+                # "antiak4btagMediumOppHem",
+                "antiak4btagMedium",
                 "lowmet",
                 "noleptons",
                 "notvbf",
@@ -715,7 +741,8 @@ class categorizer(SkimmerABC):
                 "metfilter",
                 "ak4jetveto",
                 "minjetkin",
-                "antiak4btagMediumOppHem",
+                # "antiak4btagMediumOppHem",
+                "antiak4btagMedium",
                 "lowmet",
                 "noleptons",
                 "notvbf",
@@ -727,7 +754,8 @@ class categorizer(SkimmerABC):
                 "metfilter",
                 "ak4jetveto",
                 "minjetkin",
-                "antiak4btagMediumOppHem",
+                # "antiak4btagMediumOppHem",
+                "antiak4btagMedium",
                 "lowmet",
                 "noleptons",
                 "isvbf",
@@ -793,6 +821,13 @@ class categorizer(SkimmerABC):
             else:
                 egamma_trigger_booleans[t] = ak.values_astype(ak.zeros_like(events.run), bool)
 
+        jetmet_trigger_booleans = {}
+        for t in self._triggers[self._year]:
+            if t in events.HLT.fields:
+                jetmet_trigger_booleans[t] = events.HLT[t]
+            else:
+                jetmet_trigger_booleans[t] = ak.values_astype(ak.zeros_like(events.run), bool)
+
         if self._btag_eff:
             cut = selection.all(*btag_eff_cuts)
             flat_gj = ak.flatten(goodjets)
@@ -814,6 +849,9 @@ class categorizer(SkimmerABC):
                 "GenFlavor": genflavor,
                 "nFatJet": ak.num(goodfatjets, axis=1),
                 "nJet": ak.num(goodjets, axis=1),
+                "nJet_outsideFatJet0": ak.num(ak4_opphem_ak8, axis=1),
+                "nJet_opphemFatJet0": ak.num(ak4_outside_ak8, axis=1),
+                "nJet_outsideFatJet0_medBtag": ak.num(ak4_outside_ak8_medB, axis=1),
                 "FatJet0_pt": candidatejet.pt,
                 "FatJet0_phi": candidatejet.phi,
                 "FatJet0_eta": candidatejet.eta,
@@ -847,6 +885,7 @@ class categorizer(SkimmerABC):
                 "genWeight": gen_weight,
                 **gen_variables,
                 **egamma_trigger_booleans,
+                **jetmet_trigger_booleans,
             }
             if self._evaluate_BDT:
                 output_array.update({"BDT_score": bdt_scores})
@@ -894,6 +933,8 @@ class categorizer(SkimmerABC):
                     "FatJet0_ParTPXbbVsQCD": candidatejet.ParTPXbbVsQCD,
                     "FatJet0_ParTPXccVsQCD": candidatejet.ParTPXccVsQCD,
                     "FatJet0_ParTPXbbXcc": candidatejet.ParTPXbbXcc,
+                    "FatJet0_ParTPTopbWq": candidatejet.ParTPTopbWq,
+                    "FatJet0_ParTPTopbWqq": candidatejet.ParTPTopbWqq,
                     "FatJet0_ParTmassGeneric": candidatejet.ParTmassGeneric,
                     "FatJet0_ParTmassX2p": candidatejet.ParTmassX2p,
                     "FatJet1_ParTPQCD": subleadingjet.ParTPQCD,
@@ -904,6 +945,8 @@ class categorizer(SkimmerABC):
                     "FatJet1_ParTPXbbVsQCD": subleadingjet.ParTPXbbVsQCD,
                     "FatJet1_ParTPXccVsQCD": subleadingjet.ParTPXccVsQCD,
                     "FatJet1_ParTPXbbXcc": subleadingjet.ParTPXbbXcc,
+                    "FatJet1_ParTPTopbWq": subleadingjet.ParTPTopbWq,
+                    "FatJet1_ParTPTopbWqq": subleadingjet.ParTPTopbWqq,
                     "FatJet1_ParTmassGeneric": subleadingjet.ParTmassGeneric,
                     "FatJet1_ParTmassX2p": subleadingjet.ParTmassX2p,
                 }
@@ -956,6 +999,8 @@ class categorizer(SkimmerABC):
                 "JetClosestFatJet0_eta": ak4_closest_ak8.eta,
                 "JetClosestFatJet0_phi": ak4_closest_ak8.phi,
                 "JetClosestFatJet0_mass": ak4_closest_ak8.mass,
+                "JetClosestFatJet0_dR": ak4_closest_ak8.delta_r(candidatejet),
+                "JetClosestFatJet0_dijetMass": (ak4_closest_ak8 + candidatejet).mass,
             }
 
         def skim(region, output_array):
