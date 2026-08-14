@@ -15,7 +15,13 @@
         "DYto2L-2Jets_MLL-50_PTLL-400to600_1J",
         "DYto2L-2Jets_MLL-50_PTLL-400to600_2J",
         "DYto2L-2Jets_MLL-50_PTLL-600_1J",
-        "DYto2L-2Jets_MLL-50_PTLL-600_2J"
+        "DYto2L-2Jets_MLL-50_PTLL-600_2J",
+        "DYto2E-2Jets_MLL-50_0J",
+        "DYto2E-2Jets_MLL-50_1J",
+        "DYto2E-2Jets_MLL-50_2J",
+        "DYto2Mu-2Jets_MLL-50_0J",
+        "DYto2Mu-2Jets_MLL-50_1J",
+        "DYto2Mu-2Jets_MLL-50_2J"
     ],
     "Wjets": [
         "WtoLNu-2Jets_0J",
