@@ -261,7 +261,12 @@ def fill_binned_histogram(
             dphi_raw = np.abs(data["Photon0_phi"] - data["FatJet0_phi"])
             dphi = np.where(dphi_raw > np.pi, 2 * np.pi - dphi_raw, dphi_raw)
 
-        var_series = dphi if var_col == "delta_phi_photon_jet" else data[var_col]
+        if setup.get("use_regressed_mass", False):
+            var_series = data["FatJet0_ParTmassX2p"]
+        elif var_col == "delta_phi_photon_jet":
+            var_series = dphi
+        else:
+            var_series = data[var_col]
 
         genflavordata = (
             np.zeros(len(data), dtype=np.int8) if is_data else data["GenFlavor"].astype(np.int8)
@@ -284,16 +289,18 @@ def fill_binned_histogram(
             # Only inclusive category for zmumu CR — no Txbb pass/fail
             selection_dict = {"inclusive": pre_selection}
         else:
-            Txcc = data["FatJet0_ParTPXccVsQCD"]
-            Txbb = data["FatJet0_ParTPXbbVsQCD"]
             if setup.get("use_modified_disc", False):
-                # Modified discriminant: (Xbb+Xcc) / (Xbb+Xcc+QCD+Xcs)
-                # Penalises W→cs events in the denominator
+                # All three discriminants use the same 4-body denominator
+                # (Xbb + Xcc + QCD + Xcs), following Cristina's definitions
                 _num = data["FatJet0_ParTPXbb"] + data["FatJet0_ParTPXcc"]
                 _den = (_num + data["FatJet0_ParTPQCD"] + data["FatJet0_ParTPXcs"]).replace(0, np.nan)
                 Txbbxcc = (_num / _den).fillna(0.0)
+                Txbb = (data["FatJet0_ParTPXbb"] / _den).fillna(0.0)
+                Txcc = (data["FatJet0_ParTPXcc"] / _den).fillna(0.0)
             else:
                 Txbbxcc = data["FatJet0_ParTPXbbXcc"]
+                Txbb = data["FatJet0_ParTPXbbVsQCD"]
+                Txcc = data["FatJet0_ParTPXccVsQCD"]
 
             selection_dict = {
                 "pass_bb": pre_selection & (Txbbxcc > working_point) & (Txbb > Txcc),

@@ -57,7 +57,7 @@ def submit_task(process, dataset, data_dir, load_cols, region, region_key, varia
         filters=pq_filters,
         load_sys_sumweights=do_loadsys_sumw,
         scalevar_structure=scalevar_structure,
-        local_search_transfer=True
+        local_search_transfer=False
     )
 
     if events:
@@ -260,7 +260,7 @@ def main(args):
              "../src/hbb/utils.py",
              "template_utils.py"
              ],
-        log_directory=f"/uscmst1b_scratch/lpc1/3DayLifetime/lzygala",
+        log_directory=f"/uscmst1b_scratch/lpc1/3DayLifetime/{os.environ['USER']}",
         memory="14GB",  # Necessary for some 2024 QCD datasets, can get away with smaller for other years
         # job_script_prologue=[]
     )
