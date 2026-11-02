@@ -1,0 +1,54 @@
+{
+    "do_systematics": true,
+    "do_muon_CR": false,
+    "observable" : {
+        "name" : "msd",
+        "min" : 20,
+        "max" : 201,
+        "nbins" : 23, 
+        "title" : "m_{sd} [GeV]",
+        "branch_name" : "FatJet0_msdmatched"
+    },
+    "categories" : {
+        "zgcr": {
+            "name" : "control-zgamma",
+            "bins" : [250, 1200],  
+            "bin_name" : "pt1",
+            "bin_pname" : "pt",
+            "branch_name" : "FatJet0_pt",
+            "bin_title" : "p_{T}"
+        }
+    },
+    "global_filters": [
+        ["FatJet0_pt", ">", 250],
+        ["FatJet0_pt", "<", 2000],
+        ["VBFPair_mjj", ">", -2],
+        ["VBFPair_mjj", "<", 13000]
+    ],
+    "samples_qq": [
+        "Zgamma", 
+        "Zjets", 
+        "Wjets", 
+        "TTGamma",
+        "Wgamma"
+    ],
+    "process_groups": {
+        "zgammabb": {
+            "components": [ ["Zgamma", "bb"], ["Zjets", "bb"] ],
+            "is_signal": true
+        },
+        "wgammacs": {
+            "components": [ ["Wgamma", "bb"], ["Wjets", "bb"] ],
+            "is_signal": false
+        },
+        "other": {
+            "components": [
+                ["Zgamma", ""], ["Zjets", ""], 
+                ["Wgamma", ""], ["Wjets", ""],
+                ["ttbar", ""], ["TTGamma", ""], 
+                ["singlet", ""], ["VV", ""]
+            ],
+            "is_signal": false
+        }
+    }
+}

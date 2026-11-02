@@ -1,0 +1,156 @@
+{
+    "data_obs_name": "EGammadata",
+    "root_filename": "fitting_{year}_zgcr_regmass.root",
+    "qcd_proc": "GJets",
+    "pt_min_scale": 250.0,
+    "stitch_ptg": true,
+    "regions_to_fit": [
+        "bb",
+        "cc"
+    ],
+    "use_modified_disc": true,
+    "use_regressed_mass": true,
+    "do_systematics": true,
+    "active_systematics": [
+        "JMSunconstrained",
+        "JMRunconstrained",
+        "VJets"
+    ],
+    "jmsr_scale": 7,
+    "jmsr_smear": 0.5,
+    "jmsr_processes": [
+        "zgammabb",
+        "zgammacc",
+        "wgammacs"
+    ],
+    "rho_scaling_max": -1.0,
+    "samples_qq": [
+        "Wjets",
+        "Zjets",
+        "Wgamma",
+        "Zgamma",
+        "TTGamma"
+    ],
+    "observable": {
+        "name": "regmass",
+        "branch_name": "FatJet0_ParTmassX2p",
+        "min": 60,
+        "max": 220,
+        "nbins": 20
+    },
+    "categories": {
+        "zgcr": {
+            "name": "control-zgamma",
+            "bins": [
+                250,
+                1200
+            ],
+            "bin_branch": "FatJet0_pt",
+            "bin_prefix": "pt",
+            "tfmc_order": {
+                "bb": {
+                    "pt": 0,
+                    "rho": 1
+                },
+                "cc": {
+                    "pt": 0,
+                    "rho": 1
+                }
+            },
+            "tfres_order": {
+                "bb": {
+                    "pt": 0,
+                    "rho": 0
+                },
+                "cc": {
+                    "pt": 0,
+                    "rho": 0
+                }
+            }
+        }
+    },
+    "process_groups": {
+        "zgammabb": {
+            "components": [
+                [
+                    "Zgamma",
+                    "bb"
+                ],
+                [
+                    "Zjets",
+                    "bb"
+                ]
+            ],
+            "is_signal": true
+        },
+        "zgammacc": {
+            "components": [
+                [
+                    "Zgamma",
+                    "c"
+                ],
+                [
+                    "Zjets",
+                    "c"
+                ]
+            ],
+            "is_signal": true
+        },
+        "wgammacs": {
+            "components": [
+                [
+                    "Wgamma",
+                    "c"
+                ],
+                [
+                    "Wjets",
+                    "c"
+                ]
+            ],
+            "is_signal": false
+        },
+        "other": {
+            "components": [
+                [
+                    "Wgamma",
+                    "bb"
+                ],
+                [
+                    "Wjets",
+                    "bb"
+                ],
+                [
+                    "Zgamma",
+                    "light"
+                ],
+                [
+                    "Wgamma",
+                    "light"
+                ],
+                [
+                    "Zjets",
+                    "light"
+                ],
+                [
+                    "Wjets",
+                    "light"
+                ],
+                [
+                    "ttbar",
+                    ""
+                ]
+            ],
+            "is_signal": false
+        }
+    },
+    "physics_model": {
+        "main": {
+            "model": "HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel",
+            "maps": [
+                "map=.*/zgammabb:r_bb[1,-100,100]",
+                "map=.*/zgammacc:r_cc[1,-100,100]"
+            ]
+        }
+    },
+    "jmsr_decorrelate": true
+}
