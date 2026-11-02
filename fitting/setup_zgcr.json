@@ -1,12 +1,14 @@
 {
     "data_obs_name": "EGammadata",
-    "root_filename": "fitting_{year}_zgcr_msd.root",
+    "root_filename": "fitting_{year}_zgcr_regmass.root",
     "qcd_proc": "GJets",
     "pt_min_scale": 250.0,
+    "stitch_ptg": true,
     "regions_to_fit": ["bb", "cc"],
     "use_modified_disc": true,
+    "use_regressed_mass": true,
     "do_systematics": true,
-    "active_systematics": ["JMSunconstrained", "JMRunconstrained"],
+    "active_systematics": ["VJets"],
     "jmsr_scale": 7,
     "jmsr_smear": 0.5,
     "jmsr_processes": ["zgammabb", "zgammacc"],
@@ -14,11 +16,11 @@
     "samples_qq": ["Wjets", "Zjets", "Wgamma", "Zgamma", "TTGamma"],
 
     "observable": {
-        "name": "msd",
-        "branch_name": "FatJet0_msd",
-        "min": 40,
-        "max": 201,
-        "nbins": 21
+        "name": "regmass",
+        "branch_name": "FatJet0_ParTmassX2p",
+        "min": 60,
+        "max": 220,
+        "nbins": 20
     },
 
     "categories": {
@@ -26,7 +28,15 @@
             "name": "control-zgamma",
             "bins": [250, 1200],
             "bin_branch": "FatJet0_pt",
-            "bin_prefix": "pt"
+            "bin_prefix": "pt",
+            "tfmc_order": { 
+                "bb": {"pt": 0, "rho": 1 },
+                "cc": {"pt": 0, "rho": 1 }
+            },
+            "tfres_order": { 
+                "bb": {"pt": 0, "rho": 0 },
+                "cc": {"pt": 0, "rho": 0 }
+            }
         }
     },
 
@@ -49,10 +59,12 @@
     },
 
     "physics_model": {
-        "model": "HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel",
-        "maps": [
-            "map=.*/zgammabb:r_bb[1,-100,100]",
-            "map=.*/zgammacc:r_cc[1,-100,100]"
-        ]
+        "main": {
+            "model": "HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel",
+            "maps": [
+                "map=.*/zgammabb:r_bb[1,-100,100]",
+                "map=.*/zgammacc:r_cc[1,-100,100]"
+            ]
+        }
     }
 }

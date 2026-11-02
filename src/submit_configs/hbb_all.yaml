@@ -1,6 +1,4 @@
 {
-  // hbb.yaml + egamma.yaml + Z->mumu CR samples (VJets_lep_NLO, VGammaLep)
-  // Used for producing skims for both the main Hbb analysis and the Z+gamma / Z->mumu calibration CRs
   "2022": {
     "JetMET": { "files_per_job": 8, },
     "Muon": { "files_per_job": 6, },

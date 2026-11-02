@@ -1,0 +1,6 @@
+{
+  "2024": {
+    "VGammaHad": { "subsamples": ["ZGto2QG-1Jets_Bin-PTG-600"], "files_per_job": 1 },
+    "VGammaLep": { "subsamples": ["DYGto2LG-1Jets_Bin-MLL-50-PTG-400"], "files_per_job": 1 }
+  }
+}

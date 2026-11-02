@@ -1,0 +1,53 @@
+data:
+  label: Data
+  color: black
+  hatch: null
+  yield: 0
+total_signal:
+  label: Total Signal
+  color: red
+  hatch: null
+  yield: 0
+zgammacc:
+  label: zgammacc
+  color: '#3f90da'
+  hatch: null
+  yield: 289.6624
+zmm:
+  label: zmm
+  color: '#ffa90e'
+  hatch: null
+  yield: 49764.5983
+zgammabb:
+  label: zgammabb
+  color: '#bd1f01'
+  hatch: null
+  yield: 350.2454
+wgammacs:
+  label: wgammacs
+  color: '#94a4a2'
+  hatch: null
+  yield: 2574.2203
+qcd:
+  label: qcd
+  color: '#832db6'
+  hatch: null
+  yield: 207571.831
+other:
+  label: other
+  color: '#a96b59'
+  hatch: null
+  yield: 7896.816
+ttbar:
+  label: ttbar
+  color: '#e76300'
+  hatch: null
+  yield: 16.57
+total:
+  label: total
+  color: '#b9ac70'
+  hatch: null
+total_background:
+  label: total_background
+  color: '#717581'
+  hatch: null

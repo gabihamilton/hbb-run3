@@ -39,6 +39,7 @@ from .GenSelection import (
     gen_selection_Hbb,
     gen_selection_V,
     gen_selection_Vg,
+    gen_selection_Vg_leptonic,
     getBosons,
 )
 from .objects import (
@@ -69,7 +70,12 @@ gen_selection_dict = {
     "Hto2B": gen_selection_Hbb,
     "Wto2Q-": gen_selection_V,
     "Zto2Q-": gen_selection_V,
+    # hadronic V+gamma: V->qq reco + gen & LHE photon (LHEGammaPt = stitching variable)
     "ZGto2QG-": gen_selection_Vg,
+    "WGto2QG-": gen_selection_Vg,
+    # leptonic V+gamma: photon only (gen & LHE); no hadronic V->qq reco
+    "DYGto2LG-": gen_selection_Vg_leptonic,
+    "WGtoLNuG-": gen_selection_Vg_leptonic,
 }
 
 
@@ -464,12 +470,15 @@ class categorizer(SkimmerABC):
             xbbfatjets = goodfatjets[ak.argsort(goodfatjets.ParTPXbbXcc, axis=1, ascending=False)]
 
         candidatejet = ak.firsts(xbbfatjets[:, 0:1])
-        subleadingjet = ak.firsts(xbbfatjets[:, 1:2])
+        
+        leftover_jets = xbbfatjets[:, 1:]
+        leftover_jets_bypt = leftover_jets[ak.argsort(leftover_jets.pt, axis=1, ascending=False)]
+        
+        subleadingjet = ak.firsts(leftover_jets_bypt[:, 0:1])
 
         selection.add(
             "minjetkin",
-            (candidatejet.pt >= 300) & (candidatejet.pt < 1200) & (candidatejet.msd >= 40.0)
-            # & (candidatejet.msd < 201.0)
+            (candidatejet.pt >= 300) & (candidatejet.pt < 1200)
             & (abs(candidatejet.eta) < 2.5),
         )
 
@@ -668,6 +677,8 @@ class categorizer(SkimmerABC):
         if isRealData:
             genflavor = ak.zeros_like(candidatejet.pt)
             genBosonPt = ak.zeros_like(candidatejet.pt)
+            genflavor_V = ak.zeros_like(candidatejet.pt)
+            genBosonPt_V = ak.zeros_like(candidatejet.pt)
         else:
 
             self.add_common_weights(weights, events, dataset)
@@ -700,66 +711,44 @@ class categorizer(SkimmerABC):
 
             bosons = getBosons(events.GenPart)
             matchedBoson = candidatejet.nearest(bosons, axis=None, threshold=0.8)
+            matchedBoson_V = subleadingjet.nearest(bosons, axis=None, threshold=0.8)
+            
             match_mask = (abs(candidatejet.pt - matchedBoson.pt) / matchedBoson.pt < 0.5) & (
                 abs(candidatejet.msd - matchedBoson.mass) / matchedBoson.mass < 0.3
             )
+            match_mask_V = (abs(subleadingjet.pt - matchedBoson_V.pt) / matchedBoson_V.pt < 0.5) & (
+                abs(subleadingjet.msd - matchedBoson_V.mass) / matchedBoson_V.mass < 0.3
+            )
+            
             selmatchedBoson = ak.mask(matchedBoson, match_mask)
+            selmatchedBoson_V = ak.mask(matchedBoson_V, match_mask_V)
+            
             genflavor = bosonFlavor(selmatchedBoson)
-            genBosonPt = ak.fill_none(ak.firsts(bosons.pt), 0)
+            genflavor_V = bosonFlavor(selmatchedBoson_V)
+            
+            genBosonPt = ak.fill_none(selmatchedBoson.pt, 0)
+            genBosonPt_V = ak.fill_none(selmatchedBoson_V.pt, 0)
 
         # softdrop mass, 0 for genflavor == 0
         msd_matched = candidatejet.msd * (genflavor > 0) + candidatejet.msd * (genflavor == 0)
+        msd_matched_V = subleadingjet.msd * (genflavor_V > 0) + subleadingjet.msd * (genflavor_V == 0)
+        
+        signal_all = [
+                "trigger",
+                "lumimask",
+                "metfilter",
+                "ak4jetveto",
+                "minjetkin",
+                "antiak4btagMedium",
+                "lowmet",
+                "noleptons",
+            ]
 
         regions = {
-            "signal-all": [
-                "trigger",
-                "lumimask",
-                "metfilter",
-                "ak4jetveto",
-                "minjetkin",
-                # "antiak4btagMediumOppHem",
-                "antiak4btagMedium",
-                "lowmet",
-                "noleptons",
-            ],
-            "signal-ggf": [
-                "trigger",
-                "lumimask",
-                "metfilter",
-                "ak4jetveto",
-                "minjetkin",
-                # "antiak4btagMediumOppHem",
-                "antiak4btagMedium",
-                "lowmet",
-                "noleptons",
-                "notvbf",
-                "not2FJ",
-            ],
-            "signal-vh": [
-                "trigger",
-                "lumimask",
-                "metfilter",
-                "ak4jetveto",
-                "minjetkin",
-                # "antiak4btagMediumOppHem",
-                "antiak4btagMedium",
-                "lowmet",
-                "noleptons",
-                "notvbf",
-                "2FJ",
-            ],
-            "signal-vbf": [
-                "trigger",
-                "lumimask",
-                "metfilter",
-                "ak4jetveto",
-                "minjetkin",
-                # "antiak4btagMediumOppHem",
-                "antiak4btagMedium",
-                "lowmet",
-                "noleptons",
-                "isvbf",
-            ],
+            "signal-all": signal_all.copy(),
+            "signal-ggf": signal_all.copy() + ["notvbf", "not2FJ"],
+            "signal-vh": signal_all.copy() + ["notvbf", "2FJ"],
+            "signal-vbf": signal_all.copy() + ["isvbf"],
             "control-tt": [
                 "muontrigger",
                 "lumimask",
@@ -799,15 +788,7 @@ class categorizer(SkimmerABC):
                 }
             )
 
-        btag_eff_cuts = [
-            "trigger",
-            "lumimask",
-            "metfilter",
-            "ak4jetveto",
-            "minjetkin",
-            "lowmet",
-            "noleptons",
-        ]
+        btag_eff_cuts = [x for x in regions["signal-all"] if x not in ["antiak4btagMedium", "antiak4btagMediumOppHem", "ak4btagMedium08"]]
 
         tic = time.time()
 
@@ -847,6 +828,8 @@ class categorizer(SkimmerABC):
             output_array = {
                 "GenBoson_pt": genBosonPt,
                 "GenFlavor": genflavor,
+                "GenBoson_V_pt": genBosonPt_V,
+                "GenFlavor_V": genflavor_V,
                 "nFatJet": ak.num(goodfatjets, axis=1),
                 "nJet": ak.num(goodjets, axis=1),
                 "nJet_outsideFatJet0": ak.num(ak4_opphem_ak8, axis=1),
@@ -856,6 +839,7 @@ class categorizer(SkimmerABC):
                 "FatJet0_phi": candidatejet.phi,
                 "FatJet0_eta": candidatejet.eta,
                 "FatJet0_msd": candidatejet.msd,
+                "FatJet0_msd_rho": candidatejet.qcdrho,
                 "FatJet0_msdmatched": msd_matched,
                 "FatJet0_n2b1": candidatejet.n2b1,
                 "FatJet0_n3b1": candidatejet.n3b1,
@@ -870,6 +854,8 @@ class categorizer(SkimmerABC):
                 "FatJet1_phi": subleadingjet.phi,
                 "FatJet1_eta": subleadingjet.eta,
                 "FatJet1_msd": subleadingjet.msd,
+                "FatJet1_msdmatched": msd_matched_V,
+                "FatJet1_msd_rho": subleadingjet.qcdrho,
                 "FatJet1_pnetMass": subleadingjet.pnetmass,
                 "FatJet1_pnetTXbb": subleadingjet.particleNet_XbbVsQCD,
                 "FatJet1_pnetTXcc": subleadingjet.particleNet_XccVsQCD,
@@ -915,6 +901,7 @@ class categorizer(SkimmerABC):
                 "FatJet0_pt": candidatejet.pt,
                 "FatJet0_msd": candidatejet.msd,
                 "FatJet0_msdmatched": msd_matched,
+                "FatJet0_msd_rho": candidatejet.qcdrho,
                 "FatJet0_pnetTXbb": candidatejet.particleNet_XbbVsQCD,
                 "FatJet0_pnetTXcc": candidatejet.particleNet_XccVsQCD,
                 "FatJet0_pnetXbbXcc": candidatejet.pnetXbbXcc,
@@ -935,6 +922,8 @@ class categorizer(SkimmerABC):
                     "FatJet0_ParTPXbbXcc": candidatejet.ParTPXbbXcc,
                     "FatJet0_ParTPTopbWq": candidatejet.ParTPTopbWq,
                     "FatJet0_ParTPTopbWqq": candidatejet.ParTPTopbWqq,
+                    "FatJet0_ParTmassGeneric_rho": candidatejet.ParTmassGeneric_rho,
+                    "FatJet0_ParTmassX2p_rho": candidatejet.ParTmassX2p_rho,
                     "FatJet0_ParTmassGeneric": candidatejet.ParTmassGeneric,
                     "FatJet0_ParTmassX2p": candidatejet.ParTmassX2p,
                     "FatJet1_ParTPQCD": subleadingjet.ParTPQCD,
@@ -949,6 +938,8 @@ class categorizer(SkimmerABC):
                     "FatJet1_ParTPTopbWqq": subleadingjet.ParTPTopbWqq,
                     "FatJet1_ParTmassGeneric": subleadingjet.ParTmassGeneric,
                     "FatJet1_ParTmassX2p": subleadingjet.ParTmassX2p,
+                    "FatJet1_ParTmassGeneric_rho": subleadingjet.ParTmassGeneric_rho,
+                    "FatJet1_ParTmassX2p_rho": subleadingjet.ParTmassX2p_rho,
                 }
                 output_array = {**output_array, **parT_array}
 
@@ -956,6 +947,10 @@ class categorizer(SkimmerABC):
                     "FatJet0_ParTPXbbVsQCD": candidatejet.ParTPXbbVsQCD,
                     "FatJet0_ParTPXccVsQCD": candidatejet.ParTPXccVsQCD,
                     "FatJet0_ParTPXbbXcc": candidatejet.ParTPXbbXcc,
+                    "FatJet0_ParTmassGeneric": candidatejet.ParTmassGeneric,
+                    "FatJet0_ParTmassX2p": candidatejet.ParTmassX2p,
+                    "FatJet0_ParTmassGeneric_rho": candidatejet.ParTmassGeneric_rho,
+                    "FatJet0_ParTmassX2p_rho": candidatejet.ParTmassX2p_rho,
                 }
                 energy_var_array = {**energy_var_array, **energy_var_array_parT}
 
