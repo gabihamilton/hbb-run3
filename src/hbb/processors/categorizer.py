@@ -32,6 +32,7 @@ from hbb.corrections import (
     mupt_variations,
     egm_variations
 )
+from hbb.common_vars import norm_preserving_weights
 from hbb.jerc_eras import jerc_variations
 from hbb.processors.SkimmerABC import SkimmerABC
 from hbb.taggers import b_taggers
@@ -208,6 +209,8 @@ class categorizer(SkimmerABC):
             "sumw": {},
             "sumw_pdf": {},
             "sumw_scalevar": {},
+            # sums of the common MC weights (no selection) for the norm-preserving variations
+            "sumw_normpres": {},
             "cutflow": Hist.new.StrCat([], growth=True, name="region", label="Region")
             .StrCat([], growth=True, name="dataset", label="Dataset")
             .Reg(15, 0, 15, name="cut", label="Cut index")
@@ -696,6 +699,16 @@ class categorizer(SkimmerABC):
         else:
 
             self.add_common_weights(weights, events, dataset)
+            if shift_name == "nominal" and not self._skip_syst:
+                # Before any selection: sum of the common weights (genweight, pileup, PS, ...) for
+                # the nominal and for each up/down of the norm-preserving weights, so that each
+                # variation can be renormalised to the nominal total in post-processing.
+                output["sumw_normpres"]["nominal"] = ak.sum(weights.weight())
+                for name in norm_preserving_weights:
+                    for direction in ("Up", "Down"):
+                        modifier = f"{name}{direction}"
+                        if modifier in weights.variations:
+                            output["sumw_normpres"][modifier] = ak.sum(weights.weight(modifier=modifier))
             # signal regions
             btag_SF = self.add_region_weights(
                 "signal", weights, events, btag_jets=ak4_outside_ak8

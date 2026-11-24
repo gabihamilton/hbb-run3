@@ -318,8 +318,11 @@ def fill_binned_histogram(
 
             # --- WEIGHTING LOGIC - PER SYST ---
             if not is_data and weight_syst != "nominal" and weight_syst in data.columns:
-                # Systematic weights (like btagSF) usually need normalization by sum_genWeight
-                weight_val = data[weight_syst].astype(float) / data["sum_genWeight"].astype(float)
+                # Systematic weights (like btagSF) usually need normalization by sum_genWeight;
+                # norm-preserving ones (pileup, PS) by their own sum when the skim stores it
+                norm_col = f"sumweight_{weight_syst}"
+                denom = data[norm_col] if norm_col in data.columns else data["sum_genWeight"]
+                weight_val = data[weight_syst].astype(float) / denom.astype(float)
             else:
                 # load_samples already calculated finalWeight (weight / sum_genWeight)
                 weight_val = data["finalWeight"].astype(float)

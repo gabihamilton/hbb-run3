@@ -77,6 +77,7 @@ def get_sum_genweights(data_dir: Path, dataset: str, load_sys_sumweights: bool =
     """
     total_sumw = 0
     syst_sumw = {}
+    normpres_sumw = {}
 
     scalevar_map = {
         "3pt" : [0, 4, 8],             # case where muF^2 = muR^2
@@ -104,6 +105,11 @@ def get_sum_genweights(data_dir: Path, dataset: str, load_sys_sumweights: bool =
                 sumw = next(iter(out_dict[key]["nominal"]["sumw"].values()))
             total_sumw += sumw
 
+            # sums of the common weights for the norm-preserving variations (newer skims only)
+            for key in out_dict:
+                for n_sumw, sumw in out_dict[key]["nominal"].get("sumw_normpres", {}).items():
+                    accumulate(normpres_sumw, n_sumw, sumw)
+
             if load_sys_sumweights:
                 for i in range(103):
                     for key in out_dict:
@@ -125,6 +131,12 @@ def get_sum_genweights(data_dir: Path, dataset: str, load_sys_sumweights: bool =
             stacklevel=2,
         )
         total_sumw = 1
+    # Norm-preserving variations (pileup, PS): divide them by sumweight_<var> instead of sum_genWeight,
+    # sumweight_<var> = sum_genWeight * S(var) / S(nominal), so that each keeps the nominal total.
+    if normpres_sumw.get("nominal"):
+        for n_sumw, sumw in normpres_sumw.items():
+            if n_sumw != "nominal":
+                syst_sumw[f"sumweight_{n_sumw}"] = total_sumw * sumw / normpres_sumw["nominal"]
     # print(f"Total sum of weights for all pickles for {dataset}: {total_sumw}")
     return total_sumw, syst_sumw
 
@@ -236,8 +248,8 @@ def load_samples(
                 events["finalWeight"] = events["weight"] / sum_genweights
                 events["sum_genWeight"] = sum_genweights
 
-                if load_sys_sumweights:
-                    for n_sumw in syst_sumweights:
+                for n_sumw in syst_sumweights:
+                    if load_sys_sumweights or not n_sumw.startswith(("sumweight_pdf_", "sumweight_scalevar_")):
                         events[n_sumw] = syst_sumweights[n_sumw]
             else:
                 # For data, we just keep the weight as is
